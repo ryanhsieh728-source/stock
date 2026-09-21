@@ -1,0 +1,583 @@
+<title>PCB 九檔儀表板</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<style>
+  /* 刻意採單一深色主題（交易看盤介面），所有顏色明確上色 */
+  :root {
+    color-scheme: dark;
+    --ground: #0a101c;
+    --panel: #101828;
+    --panel-2: #152036;
+    --line: #1f2a40;
+    --grid: #1a2438;
+    --ink: #e3e9f3;
+    --ink-2: #a7b3c7;
+    --muted: #6f7d94;
+    --accent: #4c8dff;
+    --up: #f0524d;     /* 台股慣例：紅漲 */
+    --down: #1fb37a;   /* 綠跌 */
+    --warn: #f2b233;
+    --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --sans: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--ground); color: var(--ink); }
+  body { margin: 0; font: 14px/1.5 var(--sans); padding: 16px clamp(16px, 2vw, 28px) 40px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--ink-2); }
+
+  /* ---- 頂部：品牌 + 股票切換 ---- */
+  .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 14px; }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand b { font: 900 20px/1 var(--sans); letter-spacing: .02em; }
+  .brand span { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+  .tab {
+    appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2);
+    border-radius: 6px; padding: 6px 10px; cursor: pointer; display: grid; gap: 1px; text-align: left;
+    font: 500 13px/1.25 var(--sans); min-width: 92px; transition: border-color .15s, background .15s;
+  }
+  .tab:hover { border-color: #33415e; color: var(--ink); }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tab[aria-selected="true"] { background: #14223d; border-color: var(--accent); color: var(--ink); }
+  .tab .t1 { display: flex; gap: 6px; align-items: baseline; }
+  .tab .code { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .tab .t2 { font-family: var(--mono); font-size: 12px; }
+
+  /* ---- KPI 列 ---- */
+  .quote {
+    display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(8, minmax(0, 1fr)); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 10px;
+  }
+  .quote > div { background: var(--panel); padding: 10px 14px; min-width: 0; }
+  .quote .id { display: flex; align-items: center; gap: 12px; }
+  .quote .id .code { font: 700 26px/1 var(--mono); }
+  .quote .id .name { font: 700 18px/1.2 var(--sans); }
+  .quote .id .mkt { font-size: 11px; color: var(--ink-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; }
+  .quote label { display: block; font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+  .quote .v { font: 700 19px/1.3 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: 12px; margin-bottom: 14px; }
+  .meta b { color: var(--ink-2); font-weight: 500; }
+
+  /* ---- 面板格線 ---- */
+  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 12px; min-width: 0; display: flex; flex-direction: column; }
+  .panel > header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .panel .tag { font: 700 11px/1 var(--mono); color: var(--accent); background: #13233f; padding: 3px 5px; border-radius: 3px; }
+  .panel h2 { font: 700 14px/1.3 var(--sans); margin: 0; }
+  .panel .sub { color: var(--muted); font-size: 11.5px; }
+  .panel .foot { color: var(--muted); font-size: 11.5px; margin-top: 6px; }
+  .chart { width: 100%; height: 220px; flex: 1 0 auto; }
+  .s3 { grid-column: span 3; } .s4 { grid-column: span 4; } .s5 { grid-column: span 5; } .s6 { grid-column: span 6; } .s7 { grid-column: span 7; } .s8 { grid-column: span 8; }
+  .tall .chart { height: 400px; }
+
+  /* 訊號摘要 */
+  .sig { display: grid; gap: 0; margin: 0; }
+  .sig > div { display: grid; grid-template-columns: 88px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); align-items: baseline; }
+  .sig dt { color: var(--muted); font-size: 12.5px; }
+  .sig dd { margin: 0; font-weight: 500; }
+  .pill { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 99px; margin-right: 6px; }
+  .pill.up { background: rgba(240,82,77,.14); } .pill.down { background: rgba(31,179,122,.14); } .pill.flat { background: rgba(167,179,199,.12); }
+  .score { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+  .score .big { font: 700 34px/1 var(--mono); }
+  .score .bar { flex: 1; height: 8px; background: var(--panel-2); border-radius: 99px; overflow: hidden; }
+  .score .bar i { display: block; height: 100%; border-radius: 99px; }
+
+  /* 表格 */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { padding: 5px 6px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+  th { color: var(--muted); font-weight: 500; font-size: 11.5px; }
+  th:first-child, td:first-child { text-align: left; }
+  tr.sum td { font-weight: 700; border-top: 1px solid var(--line); background: var(--panel-2); }
+  tr.cur td { background: #14223d; font-weight: 700; }
+
+  /* 風險量表 */
+  .meters { display: grid; gap: 11px; margin-top: 4px; }
+  .meter .row { display: flex; justify-content: space-between; font-size: 12.5px; }
+  .meter .row span { color: var(--ink-2); }
+  .meter .track { height: 6px; background: var(--panel-2); border-radius: 99px; margin-top: 4px; overflow: hidden; }
+  .meter .track i { display: block; height: 100%; border-radius: 99px; }
+
+  .note { color: var(--muted); font-size: 12px; margin-top: 16px; line-height: 1.7; max-width: 90ch; }
+  .empty { color: var(--muted); padding: 30px 0; text-align: center; }
+
+  @media (max-width: 1280px) {
+    .quote { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .quote .id { grid-column: 1 / -1; }
+  }
+  @media (max-width: 1100px) {
+    .s3, .s4, .s5 { grid-column: span 6; }
+    .s6, .s7, .s8 { grid-column: span 12; }
+  }
+  @media (max-width: 700px) {
+    .grid > .panel { grid-column: span 12; }
+    .quote { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tall .chart { height: 320px; }
+    .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .tab { min-width: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="topbar">
+  <div class="brand"><b>PCB 九檔儀表板</b><span>ECF · 載板 / 銅箔 / 記憶體</span></div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="選擇股票"></nav>
+</div>
+
+<section class="quote" id="quote" aria-live="polite"></section>
+<div class="meta" id="meta"></div>
+
+<main class="grid">
+  <section class="panel s8 tall"><header><span class="tag">01</span><h2>主 K 線圖</h2><span class="sub">近 60 日 · MA5 / 10 / 20 / 60 · 虛線為 20 日壓力、支撐</span></header><div class="chart" id="c-k"></div></section>
+  <section class="panel s4"><header><span class="tag">02</span><h2>技術訊號摘要</h2><span class="sub">規則判讀，非投資建議</span></header><div id="p-sig"></div></section>
+
+  <section class="panel s4"><header><span class="tag">03</span><h2>KD 指標</h2><span class="sub">9, 3, 3</span></header><div class="chart" id="c-kd"></div></section>
+  <section class="panel s4"><header><span class="tag">04</span><h2>MACD</h2><span class="sub">12, 26, 9 · 柱狀為 OSC</span></header><div class="chart" id="c-macd"></div></section>
+  <section class="panel s4"><header><span class="tag">05</span><h2>RSI</h2><span class="sub">14 日 · 70 超買 / 30 超賣</span></header><div class="chart" id="c-rsi"></div></section>
+
+  <section class="panel s6"><header><span class="tag">06</span><h2>三大法人每日買賣超</h2><span class="sub">單位：張</span></header><div class="chart" id="c-inst"></div></section>
+  <section class="panel s3"><header><span class="tag">07</span><h2>法人累計買賣超</h2><span class="sub">60 日累計（張）</span></header><div class="chart" id="c-instcum"></div></section>
+  <section class="panel s3"><header><span class="tag">08</span><h2>法人近 10 日明細</h2><span class="sub">張</span></header><div class="tbl-wrap" id="p-insttbl"></div></section>
+
+  <section class="panel s3"><header><span class="tag">09</span><h2>多維度評分</h2><span class="sub">0–100，越高越偏多</span></header><div class="chart" id="c-radar"></div></section>
+  <section class="panel s3"><header><span class="tag">10</span><h2>價量分布</h2><span class="sub">近 60 日成交量落點</span></header><div class="chart" id="c-vp"></div></section>
+  <section class="panel s3"><header><span class="tag">11</span><h2>10 日價格區間</h2><span class="sub">依近 60 日報酬統計推估</span></header><div class="chart" id="c-proj"></div></section>
+  <section class="panel s3"><header><span class="tag">12</span><h2>風險指標</h2><span class="sub">波動與回撤</span></header><div id="p-risk"></div></section>
+
+  <section class="panel s4"><header><span class="tag">13</span><h2>布林通道</h2><span class="sub">20 日 ± 2σ</span></header><div class="chart" id="c-boll"></div></section>
+  <section class="panel s4"><header><span class="tag">14</span><h2>量能</h2><span class="sub">藍色為高於 20 日均量</span></header><div class="chart" id="c-vol"></div></section>
+  <section class="panel s4"><header><span class="tag">15</span><h2>關鍵價位</h2><span class="sub">由高到低</span></header><div class="tbl-wrap" id="p-levels"></div></section>
+
+  <section class="panel s4"><header><span class="tag">16</span><h2>九檔近 20 日報酬</h2><span class="sub">目前個股以白框標示</span></header><div class="chart" id="c-ret"></div></section>
+  <section class="panel s4"><header><span class="tag">17</span><h2>九檔報酬相關性</h2><span class="sub">近 60 日日報酬</span></header><div class="chart" id="c-corr"></div></section>
+  <section class="panel s4"><header><span class="tag">18</span><h2>九檔法人力道</h2><span class="sub">近 20 日法人買賣超 ÷ 成交量</span></header><div class="chart" id="c-flow"></div></section>
+</main>
+
+<p class="note" id="note"></p>
+
+<!-- 容器內有自帶的 ECharts；找不到時改用 CDN -->
+<script src="vendor/echarts.min.js"></script>
+<script>window.echarts || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"><\/script>');</script>
+<script src="data.js"></script>
+<script>
+(() => {
+  const D = window.STOCK_DATA;
+  const C = {
+    ground: '#0a101c', panel: '#101828', panel2: '#152036', line: '#1f2a40', grid: '#1a2438',
+    ink: '#e3e9f3', ink2: '#a7b3c7', muted: '#6f7d94', accent: '#4c8dff', up: '#f0524d', down: '#1fb37a', warn: '#f2b233',
+    ma: ['#b8870f', '#a568f0', '#1fa3d1', '#c9d2e3'],        // MA5/10/20/60（MA60 以虛線區分）
+    inst: { foreign: '#4c8dff', trust: '#b8800f', dealer: '#9a6cf0' },
+  };
+  const WIN = 60;
+  const mono = 'JetBrains Mono, Consolas, monospace';
+
+  if (!D || !D.stocks?.length) {
+    document.querySelector('main').innerHTML = '<p class="empty" style="grid-column:1/-1">資料尚未產生。首次啟動會自動從證交所、櫃買中心抓取（約 8 分鐘），完成後重新整理此頁即可。</p>';
+    return;
+  }
+
+  // ---------- 指標計算 ----------
+  const sma = (a, n) => a.map((_, i) => i < n - 1 ? null : a.slice(i - n + 1, i + 1).reduce((s, x) => s + x, 0) / n);
+  const ema = (a, n) => { const k = 2 / (n + 1), out = []; a.forEach((x, i) => out.push(i ? x * k + out[i - 1] * (1 - k) : x)); return out; };
+  const std = (a, n) => a.map((_, i) => { if (i < n - 1) return null; const s = a.slice(i - n + 1, i + 1), m = s.reduce((p, x) => p + x, 0) / n; return Math.sqrt(s.reduce((p, x) => p + (x - m) ** 2, 0) / n); });
+  function kd(h, l, c, n = 9) {
+    let K = 50, Dv = 50; const ks = [], ds = [];
+    c.forEach((x, i) => {
+      const lo = Math.min(...l.slice(Math.max(0, i - n + 1), i + 1)), hi = Math.max(...h.slice(Math.max(0, i - n + 1), i + 1));
+      const rsv = hi === lo ? 50 : (x - lo) / (hi - lo) * 100;
+      K = K * 2 / 3 + rsv / 3; Dv = Dv * 2 / 3 + K / 3; ks.push(K); ds.push(Dv);
+    });
+    return { k: ks, d: ds };
+  }
+  function macd(c) { const dif = ema(c, 12).map((x, i) => x - ema(c, 26)[i]); const dea = ema(dif, 9); return { dif, dea, osc: dif.map((x, i) => x - dea[i]) }; }
+  function rsi(c, n = 14) {
+    const out = [null]; let ag = 0, al = 0;
+    for (let i = 1; i < c.length; i++) {
+      const ch = c[i] - c[i - 1], g = Math.max(ch, 0), lo = Math.max(-ch, 0);
+      if (i <= n) { ag += g / n; al += lo / n; out.push(i < n ? null : (al === 0 ? 100 : 100 - 100 / (1 + ag / al))); continue; }
+      ag = (ag * (n - 1) + g) / n; al = (al * (n - 1) + lo) / n; out.push(al === 0 ? 100 : 100 - 100 / (1 + ag / al));
+    }
+    return out;
+  }
+  function atr(h, l, c, n = 14) {
+    const tr = c.map((_, i) => i ? Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1])) : h[i] - l[i]);
+    const out = []; tr.forEach((t, i) => out.push(i < n ? (i === n - 1 ? tr.slice(0, n).reduce((s, x) => s + x, 0) / n : null) : (out[i - 1] * (n - 1) + t) / n));
+    return out;
+  }
+  const clamp = (x, a = 0, b = 100) => Math.max(a, Math.min(b, x));
+  const last = a => a[a.length - 1];
+
+  function analyze(s) {
+    const d = s.daily, c = d.map(r => r.c), h = d.map(r => r.h), l = d.map(r => r.l), v = d.map(r => r.v);
+    const ma = [5, 10, 20, 60].map(n => sma(c, n));
+    const K = kd(h, l, c), M = macd(c), R = rsi(c), A = atr(h, l, c);
+    const mid = sma(c, 20), sd = std(c, 20), up = mid.map((m, i) => m == null ? null : m + 2 * sd[i]), dn = mid.map((m, i) => m == null ? null : m - 2 * sd[i]);
+    const vma = sma(v, 20);
+    const ret = c.map((x, i) => i ? Math.log(x / c[i - 1]) : null);
+    const n = c.length, i = n - 1;
+    const win = d.slice(-WIN), w20 = d.slice(-20);
+    const hi60 = Math.max(...win.map(r => r.h)), lo60 = Math.min(...win.map(r => r.l));
+    const hi20 = Math.max(...w20.map(r => r.h)), lo20 = Math.min(...w20.map(r => r.l));
+    const inst = s.inst;
+    const sumInst = (k, days) => inst.slice(-days).reduce((a, r) => a + (r[k] ?? 0), 0);
+    const inst20 = sumInst('total', 20), inst5 = sumInst('total', 5);
+    const vol20 = w20.reduce((a, r) => a + r.v, 0);
+
+    // 價量分布
+    const bins = 24, step = (hi60 - lo60) / bins || 1, vp = new Array(bins).fill(0);
+    win.forEach(r => {
+      const b0 = Math.min(bins - 1, Math.floor((r.l - lo60) / step)), b1 = Math.min(bins - 1, Math.floor((r.h - lo60) / step));
+      for (let b = b0; b <= b1; b++) vp[b] += r.v / (b1 - b0 + 1);
+    });
+    const pocBin = vp.indexOf(Math.max(...vp)), poc = lo60 + (pocBin + .5) * step;
+
+    // 評分（透明規則）
+    const cl = c[i], m5 = ma[0][i], m10 = ma[1][i], m20 = ma[2][i], m60 = ma[3][i];
+    const trend = (cl > m20 ? 25 : 0) + (m60 == null || m20 > m60 ? 25 : 0) + (m5 > m10 ? 25 : 0) + (m20 > ma[2][i - 5] ? 25 : 0);
+    const momentum = clamp(R[i] * .5 + (M.osc[i] > 0 ? 25 : 0) + (K.k[i] > K.d[i] ? 25 : 0));
+    const chip = vol20 ? clamp(50 + inst20 / vol20 * 250) : 50;
+    const volScore = clamp(50 * (v.slice(-5).reduce((a, x) => a + x, 0) / 5) / (vma[i] || 1));
+    const atrPct = A[i] / cl * 100;
+    const stability = clamp(100 - atrPct * 12);
+    const composite = Math.round((trend + momentum + chip + volScore + stability) / 5);
+
+    const rets = ret.slice(-WIN).filter(x => x != null);
+    const mu = rets.reduce((a, x) => a + x, 0) / rets.length;
+    const sig = Math.sqrt(rets.reduce((a, x) => a + (x - mu) ** 2, 0) / (rets.length - 1));
+    let peak = -Infinity, mdd = 0; win.forEach(r => { peak = Math.max(peak, r.c); mdd = Math.min(mdd, r.c / peak - 1); });
+
+    return { s, d, c, v, ma, K, M, R, A, mid, up, dn, vma, ret, hi60, lo60, hi20, lo20, vp, step, poc, pocBin, inst, inst5, inst20, vol20,
+      scores: { trend, momentum, chip, volScore, stability }, composite, atrPct, mu, sig, mdd,
+      ret20: c[i] / c[Math.max(0, i - 20)] - 1, chg: cl - c[i - 1], chgPct: cl / c[i - 1] - 1 };
+  }
+
+  const A = D.stocks.map(analyze);
+  const byCode = Object.fromEntries(A.map(a => [a.s.code, a]));
+
+  // ---------- 格式 ----------
+  const fmt = (x, d = 2) => x == null || !Number.isFinite(x) ? '—' : x.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const sgn = (x, d = 2) => (x > 0 ? '+' : '') + fmt(x, d);
+  const cls = x => x > 0 ? 'up' : x < 0 ? 'down' : 'flat';
+  const priceDigits = p => p >= 100 ? 1 : 2;
+  const md = iso => iso.slice(5).replace('-', '/');
+
+  // ---------- ECharts 共用 ----------
+  const charts = {};
+  function chart(id) {
+    if (!charts[id]) { charts[id] = echarts.init(document.getElementById(id), null, { renderer: 'canvas' }); }
+    return charts[id];
+  }
+  const tooltip = (extra = {}) => ({
+    trigger: 'axis', backgroundColor: 'rgba(12,19,33,.96)', borderColor: C.line, textStyle: { color: C.ink, fontSize: 12, fontFamily: mono },
+    axisPointer: { type: 'cross', lineStyle: { color: '#3a4867' }, crossStyle: { color: '#3a4867' }, label: { backgroundColor: '#24324e', fontFamily: mono } }, ...extra,
+  });
+  const xCat = (data, extra = {}) => ({ type: 'category', data, boundaryGap: true, axisLine: { lineStyle: { color: C.line } }, axisTick: { show: false },
+    axisLabel: { color: C.muted, fontSize: 10.5, fontFamily: mono }, ...extra });
+  const yVal = (extra = {}) => ({ type: 'value', scale: true, splitLine: { lineStyle: { color: C.grid } }, axisLine: { show: false },
+    axisLabel: { color: C.muted, fontSize: 10.5, fontFamily: mono }, ...extra });
+  const legend = (extra = {}) => ({ top: 0, left: 0, itemWidth: 14, itemHeight: 3, icon: 'rect', textStyle: { color: C.ink2, fontSize: 11 }, ...extra });
+  const tail = (a, n = WIN) => a.slice(-n);
+  const r2 = x => x == null ? null : +x.toFixed(2);
+
+  // ---------- 繪製：個股 ----------
+  function renderStock(a) {
+    const { d } = a, n = d.length, dates = tail(d).map(r => md(r.date)), dd = tail(d);
+    const pd = priceDigits(last(a.c));
+
+    // 頂部報價
+    const L = last(d);
+    const q = [
+      ['收盤價', fmt(L.c, pd), cls(a.chg)],
+      ['漲跌', sgn(a.chg, pd), cls(a.chg)],
+      ['漲跌幅', sgn(a.chgPct * 100) + '%', cls(a.chg)],
+      ['成交量（張）', fmt(L.v, 0), ''],
+      ['成交筆數', fmt(L.n, 0), ''],
+      ['開盤', fmt(L.o, pd), ''],
+      ['最高', fmt(L.h, pd), ''],
+      ['最低', fmt(L.l, pd), ''],
+    ];
+    document.getElementById('quote').innerHTML =
+      `<div class="id"><span class="code">${a.s.code}</span><span class="name">${a.s.name}</span><span class="mkt">${a.s.market === 'TPEx' ? '上櫃' : '上市'}</span></div>` +
+      q.map(([k, v, c]) => `<div><label>${k}</label><span class="v ${c}">${v}</span></div>`).join('');
+    document.getElementById('meta').innerHTML =
+      `<span>資料日 <b>${L.date}</b></span><span>日 K <b>${n}</b> 日（顯示近 ${WIN} 日）</span><span>法人 <b>${a.inst.length}</b> 日</span>` +
+      `<span>來源 <b>${a.s.market === 'TPEx' ? '櫃買中心' : '證交所'}</b></span><span>收盤後資料，非即時行情</span>`;
+
+    // 01 K 線
+    const lvl = (y, name, color) => ({ yAxis: y, name, lineStyle: { color, type: 'dashed', width: 1 }, label: { formatter: `${name} ${fmt(y, pd)}`, color, fontSize: 10.5, fontFamily: mono, position: 'insideEndTop' } });
+    chart('c-k').setOption({
+      animation: false, backgroundColor: 'transparent', tooltip: tooltip(), axisPointer: { link: [{ xAxisIndex: 'all' }] },
+      legend: legend({ data: ['MA5', 'MA10', 'MA20', 'MA60'] }),
+      grid: [{ left: 20, right: 56, top: 28, height: '62%' }, { left: 20, right: 56, top: '76%', bottom: 22 }],
+      xAxis: [xCat(dates, { axisLabel: { show: false } }), xCat(dates, { gridIndex: 1 })],
+      yAxis: [yVal({ position: 'right' }), yVal({ gridIndex: 1, position: 'right', splitNumber: 2, axisLabel: { color: C.muted, fontSize: 10, fontFamily: mono, formatter: v => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v } })],
+      series: [
+        { type: 'candlestick', name: 'K 線', data: dd.map(r => [r.o, r.c, r.l, r.h]),
+          itemStyle: { color: C.up, color0: C.down, borderColor: C.up, borderColor0: C.down },
+          markLine: { symbol: 'none', silent: true, data: [lvl(a.hi20, '壓力', C.up), lvl(a.lo20, '支撐', C.down)] } },
+        ...['MA5', 'MA10', 'MA20', 'MA60'].map((nm, k) => ({ type: 'line', name: nm, data: tail(a.ma[k]).map(r2), showSymbol: false, smooth: false,
+          lineStyle: { width: k === 3 ? 1.5 : 1.5, color: C.ma[k], type: k === 3 ? 'dashed' : 'solid' }, itemStyle: { color: C.ma[k] } })),
+        { type: 'bar', name: '成交量', xAxisIndex: 1, yAxisIndex: 1, data: dd.map(r => ({ value: r.v, itemStyle: { color: r.c >= r.o ? C.up : C.down, opacity: .75 } })), barMaxWidth: 8 },
+      ],
+    }, true);
+
+    // 03 KD
+    chart('c-kd').setOption({
+      animation: false, tooltip: tooltip(), legend: legend({ data: ['K', 'D'] }), grid: { left: 20, right: 36, top: 26, bottom: 22 },
+      xAxis: xCat(dates), yAxis: yVal({ scale: false, min: 0, max: 100, interval: 20, position: 'right' }),
+      series: [
+        { type: 'line', name: 'K', data: tail(a.K.k).map(r2), showSymbol: false, lineStyle: { width: 2, color: C.ma[0] }, itemStyle: { color: C.ma[0] },
+          markLine: { symbol: 'none', silent: true, lineStyle: { color: '#3a4867', type: 'dashed' }, label: { show: false }, data: [{ yAxis: 80 }, { yAxis: 20 }] } },
+        { type: 'line', name: 'D', data: tail(a.K.d).map(r2), showSymbol: false, lineStyle: { width: 2, color: C.ma[2] }, itemStyle: { color: C.ma[2] } },
+      ],
+    }, true);
+
+    // 04 MACD
+    chart('c-macd').setOption({
+      animation: false, tooltip: tooltip(), legend: legend({ data: ['DIF', 'MACD'] }), grid: { left: 20, right: 44, top: 26, bottom: 22 },
+      xAxis: xCat(dates), yAxis: yVal({ position: 'right' }),
+      series: [
+        { type: 'bar', name: 'OSC', data: tail(a.M.osc).map(x => ({ value: r2(x), itemStyle: { color: x >= 0 ? C.up : C.down } })), barMaxWidth: 6 },
+        { type: 'line', name: 'DIF', data: tail(a.M.dif).map(r2), showSymbol: false, lineStyle: { width: 2, color: C.ma[0] }, itemStyle: { color: C.ma[0] } },
+        { type: 'line', name: 'MACD', data: tail(a.M.dea).map(r2), showSymbol: false, lineStyle: { width: 2, color: C.ma[2] }, itemStyle: { color: C.ma[2] } },
+      ],
+    }, true);
+
+    // 05 RSI
+    chart('c-rsi').setOption({
+      animation: false, tooltip: tooltip(), grid: { left: 20, right: 36, top: 14, bottom: 22 },
+      xAxis: xCat(dates), yAxis: yVal({ scale: false, min: 0, max: 100, interval: 20, position: 'right' }),
+      visualMap: { show: false, dimension: 1, pieces: [{ gt: 70, color: C.up }, { lt: 30, color: C.down }, { gte: 30, lte: 70, color: C.accent }] },
+      series: [{ type: 'line', name: 'RSI14', data: tail(a.R).map(r2), showSymbol: false, lineStyle: { width: 2 },
+        markArea: { silent: true, itemStyle: { color: 'rgba(76,141,255,.05)' }, data: [[{ yAxis: 30 }, { yAxis: 70 }]] },
+        markLine: { symbol: 'none', silent: true, lineStyle: { color: '#3a4867', type: 'dashed' }, label: { show: false }, data: [{ yAxis: 70 }, { yAxis: 30 }] } }],
+    }, true);
+
+    // 06 法人每日
+    const inst = a.inst, idates = inst.map(r => md(r.date));
+    const instSeries = [['外資', 'foreign'], ['投信', 'trust'], ['自營商', 'dealer']];
+    chart('c-inst').setOption({
+      animation: false, tooltip: tooltip({ axisPointer: { type: 'shadow' }, valueFormatter: v => fmt(v, 0) + ' 張' }),
+      legend: legend({ data: instSeries.map(x => x[0]), itemHeight: 8 }), grid: { left: 20, right: 52, top: 26, bottom: 22 },
+      xAxis: xCat(idates), yAxis: yVal({ scale: false, position: 'right', axisLabel: { color: C.muted, fontSize: 10.5, fontFamily: mono, formatter: v => Math.abs(v) >= 1000 ? (v / 1000) + 'k' : v } }),
+      series: instSeries.map(([nm, k]) => ({ type: 'bar', name: nm, stack: 'i', data: inst.map(r => Math.round(r[k] ?? 0)), itemStyle: { color: C.inst[k] }, barMaxWidth: 10 })),
+    }, true);
+
+    // 07 法人累計
+    const cum = k => { let s = 0; return inst.map(r => Math.round(s += r[k] ?? 0)); };
+    chart('c-instcum').setOption({
+      animation: false, tooltip: tooltip({ valueFormatter: v => fmt(v, 0) + ' 張' }),
+      legend: legend({ data: ['外資', '投信', '自營商', '合計'] }), grid: { left: 20, right: 50, top: 44, bottom: 22 },
+      xAxis: xCat(idates), yAxis: yVal({ position: 'right', axisLabel: { color: C.muted, fontSize: 10.5, fontFamily: mono, formatter: v => Math.abs(v) >= 1000 ? (v / 1000) + 'k' : v } }),
+      series: [
+        ...instSeries.map(([nm, k]) => ({ type: 'line', name: nm, data: cum(k), showSymbol: false, lineStyle: { width: 2, color: C.inst[k] }, itemStyle: { color: C.inst[k] } })),
+        { type: 'line', name: '合計', data: cum('total'), showSymbol: false, lineStyle: { width: 2, color: C.ink, type: 'dashed' }, itemStyle: { color: C.ink } },
+      ],
+    }, true);
+
+    // 08 法人明細表
+    const cell = x => `<td class="num ${cls(x)}">${sgn(Math.round(x), 0)}</td>`;
+    const rows = inst.slice(-10).reverse().map(r => `<tr><td class="num">${md(r.date)}</td>${cell(r.foreign)}${cell(r.trust)}${cell(r.dealer)}${cell(r.total)}</tr>`).join('');
+    const sumRow = (days, label) => { const s = k => inst.slice(-days).reduce((x, r) => x + (r[k] ?? 0), 0);
+      return `<tr class="sum"><td>${label}</td>${cell(s('foreign'))}${cell(s('trust'))}${cell(s('dealer'))}${cell(s('total'))}</tr>`; };
+    document.getElementById('p-insttbl').innerHTML = inst.length
+      ? `<table><thead><tr><th>日期</th><th>外資</th><th>投信</th><th>自營</th><th>合計</th></tr></thead><tbody>${rows}${sumRow(5, '近 5 日')}${sumRow(20, '近 20 日')}</tbody></table>`
+      : '<p class="empty">無法人資料</p>';
+
+    // 02 訊號摘要
+    const i = n - 1, ma = a.ma.map(x => x[i]);
+    const align = ma[0] > ma[1] && ma[1] > ma[2] && ma[2] > ma[3] ? ['多頭排列', 'up'] : ma[0] < ma[1] && ma[1] < ma[2] && ma[2] < ma[3] ? ['空頭排列', 'down'] : ['均線糾結', 'flat'];
+    const cross = (() => { for (let j = i; j > i - 3; j--) { const p = a.K.k[j - 1] - a.K.d[j - 1], q = a.K.k[j] - a.K.d[j]; if (p <= 0 && q > 0) return ['黃金交叉', 'up']; if (p >= 0 && q < 0) return ['死亡交叉', 'down']; } return a.K.k[i] > a.K.d[i] ? ['K > D', 'up'] : ['K < D', 'down']; })();
+    const kz = a.K.k[i] > 80 ? '（高檔）' : a.K.k[i] < 20 ? '（低檔）' : '';
+    const oscFlip = a.M.osc[i] > 0 && a.M.osc[i - 1] <= 0 ? ['柱狀翻紅', 'up'] : a.M.osc[i] < 0 && a.M.osc[i - 1] >= 0 ? ['柱狀翻綠', 'down'] : a.M.osc[i] > 0 ? (a.M.osc[i] > a.M.osc[i - 1] ? ['紅柱放大', 'up'] : ['紅柱縮小', 'flat']) : (a.M.osc[i] < a.M.osc[i - 1] ? ['綠柱放大', 'down'] : ['綠柱縮小', 'flat']);
+    const rv = a.R[i], rs = rv > 70 ? ['超買', 'up'] : rv < 30 ? ['超賣', 'down'] : ['中性', 'flat'];
+    const pb = (a.c[i] - a.dn[i]) / (a.up[i] - a.dn[i]);
+    const verdict = a.composite >= 65 ? ['偏多', 'up'] : a.composite <= 40 ? ['偏空', 'down'] : ['中性', 'flat'];
+    const pill = ([t, c]) => `<span class="pill ${c}">${t}</span>`;
+    const scoreColor = a.composite >= 65 ? C.up : a.composite <= 40 ? C.down : C.warn;
+    document.getElementById('p-sig').innerHTML = `
+      <dl class="sig">
+        <div><dt>均線排列</dt><dd>${pill(align)}<span class="num">MA20 ${fmt(ma[2], pd)}</span></dd></div>
+        <div><dt>KD</dt><dd>${pill(cross)}<span class="num">K ${fmt(a.K.k[i], 1)} / D ${fmt(a.K.d[i], 1)}</span>${kz}</dd></div>
+        <div><dt>MACD</dt><dd>${pill(oscFlip)}<span class="num">OSC ${sgn(a.M.osc[i])}</span></dd></div>
+        <div><dt>RSI 14</dt><dd>${pill(rs)}<span class="num">${fmt(rv, 1)}</span></dd></div>
+        <div><dt>布林位置</dt><dd><span class="num">%B ${fmt(pb * 100, 0)}%</span> ${pb > 1 ? '（突破上軌）' : pb < 0 ? '（跌破下軌）' : ''}</dd></div>
+        <div><dt>法人近 5 日</dt><dd class="num ${cls(a.inst5)}">${sgn(Math.round(a.inst5), 0)} 張</dd></div>
+        <div><dt>支撐 / 壓力</dt><dd class="num"><span class="down">${fmt(a.lo20, pd)}</span> / <span class="up">${fmt(a.hi20, pd)}</span></dd></div>
+      </dl>
+      <div class="score"><span class="big" style="color:${scoreColor}">${a.composite}</span>
+        <div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:12px;color:${C.ink2}"><span>綜合評分</span>${pill(verdict)}</div>
+        <div class="bar"><i style="width:${a.composite}%;background:${scoreColor}"></i></div></div></div>`;
+
+    // 09 雷達
+    const sc = a.scores;
+    chart('c-radar').setOption({
+      animation: false, tooltip: { trigger: 'item', backgroundColor: 'rgba(12,19,33,.96)', borderColor: C.line, textStyle: { color: C.ink, fontSize: 12 } },
+      radar: { radius: '64%', center: ['50%', '54%'], splitNumber: 4, indicator: ['趨勢', '動能', '籌碼', '量能', '穩定度'].map(nm => ({ name: nm, max: 100 })),
+        axisName: { color: C.ink2, fontSize: 11.5 }, splitLine: { lineStyle: { color: C.grid } }, splitArea: { areaStyle: { color: ['transparent'] } }, axisLine: { lineStyle: { color: C.grid } } },
+      series: [{ type: 'radar', symbolSize: 5, data: [{ value: [sc.trend, sc.momentum, sc.chip, sc.volScore, sc.stability].map(Math.round), name: '評分',
+        lineStyle: { color: C.accent, width: 2 }, itemStyle: { color: C.accent }, areaStyle: { color: 'rgba(76,141,255,.22)' } }] }],
+    }, true);
+
+    // 10 價量分布
+    const vpLabels = a.vp.map((_, b) => fmt(a.lo60 + (b + .5) * a.step, pd));
+    const curBin = Math.min(a.vp.length - 1, Math.floor((last(a.c) - a.lo60) / a.step));
+    chart('c-vp').setOption({
+      animation: false, tooltip: tooltip({ axisPointer: { type: 'shadow' }, valueFormatter: v => fmt(v, 0) + ' 張' }), grid: { left: 20, right: 12, top: 8, bottom: 20, containLabel: true },
+      xAxis: { type: 'value', show: false }, yAxis: xCat(vpLabels, { axisLabel: { color: C.muted, fontSize: 10, fontFamily: mono, interval: 3 } }),
+      series: [{ type: 'bar', data: a.vp.map((v, b) => ({ value: Math.round(v), itemStyle: { color: b === curBin ? C.warn : b === a.pocBin ? C.accent : '#2c3a58', borderRadius: [0, 3, 3, 0] } })), barCategoryGap: '18%' }],
+    }, true);
+
+    // 11 10 日區間
+    const P = last(a.c), H = 10, past = tail(a.c, 20);
+    const xs = [...tail(d, 20).map(r => md(r.date)), ...Array.from({ length: H }, (_, k) => `+${k + 1}`)];
+    const band = z => Array.from({ length: H + 1 }, (_, h) => P * Math.exp(a.mu * h + z * a.sig * Math.sqrt(h)));
+    const pad = arr => [...new Array(past.length - 1).fill(null), ...arr.map(r2)];
+    const lo80 = band(-1.2816), hi80 = band(1.2816), lo50 = band(-.6745), hi50 = band(.6745), med = band(0);
+    chart('c-proj').setOption({
+      animation: false, tooltip: tooltip({ valueFormatter: v => v == null ? '—' : fmt(v, pd) }), grid: { left: 20, right: 44, top: 24, bottom: 22 },
+      legend: legend({ data: ['80% 區間', '50% 區間'], itemHeight: 8 }),
+      xAxis: xCat(xs, { boundaryGap: false }), yAxis: yVal({ position: 'right' }),
+      series: [
+        { type: 'line', name: '_b80', stack: 'b80', data: pad(lo80), showSymbol: false, lineStyle: { opacity: 0 }, tooltip: { show: false } },
+        { type: 'line', name: '80% 區間', stack: 'b80', data: pad(hi80.map((x, k) => x - lo80[k])), showSymbol: false, lineStyle: { opacity: 0 }, areaStyle: { color: 'rgba(76,141,255,.16)' }, itemStyle: { color: 'rgba(76,141,255,.4)' }, tooltip: { show: false } },
+        { type: 'line', name: '_b50', stack: 'b50', data: pad(lo50), showSymbol: false, lineStyle: { opacity: 0 }, tooltip: { show: false } },
+        { type: 'line', name: '50% 區間', stack: 'b50', data: pad(hi50.map((x, k) => x - lo50[k])), showSymbol: false, lineStyle: { opacity: 0 }, areaStyle: { color: 'rgba(76,141,255,.28)' }, itemStyle: { color: 'rgba(76,141,255,.7)' }, tooltip: { show: false } },
+        { type: 'line', name: '收盤', data: [...past.map(r2), ...new Array(H).fill(null)], showSymbol: false, lineStyle: { width: 2, color: C.ink }, itemStyle: { color: C.ink } },
+        { type: 'line', name: '中位數', data: pad(med), showSymbol: false, lineStyle: { width: 1.5, color: C.accent, type: 'dashed' }, itemStyle: { color: C.accent },
+          endLabel: { show: true, formatter: p => fmt(p.value, pd), color: C.ink2, fontSize: 10, fontFamily: mono } },
+        { type: 'line', name: '80% 上緣', data: pad(hi80), showSymbol: false, lineStyle: { opacity: 0 }, itemStyle: { color: C.up } },
+        { type: 'line', name: '80% 下緣', data: pad(lo80), showSymbol: false, lineStyle: { opacity: 0 }, itemStyle: { color: C.down } },
+      ],
+    }, true);
+
+    // 12 風險
+    const ann = a.sig * Math.sqrt(252) * 100;
+    const meters = [
+      ['ATR 14 ÷ 股價', a.atrPct, 10, fmt(a.atrPct) + '%'],
+      ['年化波動率（60 日）', ann, 100, fmt(ann, 1) + '%'],
+      ['60 日最大回撤', -a.mdd * 100, 50, fmt(a.mdd * 100, 1) + '%'],
+      ['距 60 日高點', (1 - P / a.hi60) * 100, 50, '−' + fmt((1 - P / a.hi60) * 100, 1) + '%'],
+      ['距 60 日低點', (P / a.lo60 - 1) * 100, 100, '+' + fmt((P / a.lo60 - 1) * 100, 1) + '%'],
+    ];
+    const tone = f => f > .66 ? C.up : f > .33 ? C.warn : C.accent;
+    document.getElementById('p-risk').innerHTML = `<div class="meters">${meters.map(([k, v, max, t], j) => { const f = clamp(v / max, 0, 1);
+      return `<div class="meter"><div class="row"><span>${k}</span><b class="num">${t}</b></div><div class="track"><i style="width:${f * 100}%;background:${j === 4 ? C.accent : tone(f)}"></i></div></div>`; }).join('')}</div>
+      <p class="foot">量條長度：ATR 以 10% 為滿格、波動率 100%、回撤 50%。</p>`;
+
+    // 13 布林
+    chart('c-boll').setOption({
+      animation: false, tooltip: tooltip({ valueFormatter: v => v == null ? '—' : fmt(v, pd) }), legend: legend({ data: ['收盤', '中軌', '上下軌'] }),
+      grid: { left: 20, right: 44, top: 26, bottom: 22 }, xAxis: xCat(dates, { boundaryGap: false }), yAxis: yVal({ position: 'right' }),
+      series: [
+        { type: 'line', name: '_lo', stack: 'bb', data: tail(a.dn).map(r2), showSymbol: false, lineStyle: { opacity: 0 }, tooltip: { show: false } },
+        { type: 'line', name: '_band', stack: 'bb', data: tail(a.up).map((u, k) => r2(u - tail(a.dn)[k])), showSymbol: false, lineStyle: { opacity: 0 }, areaStyle: { color: 'rgba(76,141,255,.12)' }, tooltip: { show: false } },
+        { type: 'line', name: '上下軌', data: tail(a.up).map(r2), showSymbol: false, lineStyle: { width: 1, color: C.accent }, itemStyle: { color: C.accent } },
+        { type: 'line', name: '下軌', data: tail(a.dn).map(r2), showSymbol: false, lineStyle: { width: 1, color: C.accent }, itemStyle: { color: C.accent } },
+        { type: 'line', name: '中軌', data: tail(a.mid).map(r2), showSymbol: false, lineStyle: { width: 1, color: C.ma[2], type: 'dashed' }, itemStyle: { color: C.ma[2] } },
+        { type: 'line', name: '收盤', data: tail(a.c), showSymbol: false, lineStyle: { width: 2, color: C.ink }, itemStyle: { color: C.ink } },
+      ],
+    }, true);
+
+    // 14 量能
+    const vmaT = tail(a.vma);
+    chart('c-vol').setOption({
+      animation: false, tooltip: tooltip({ axisPointer: { type: 'shadow' }, valueFormatter: v => fmt(v, 0) + ' 張' }), legend: legend({ data: ['20 日均量'] }),
+      grid: { left: 20, right: 50, top: 26, bottom: 22 }, xAxis: xCat(dates),
+      yAxis: yVal({ scale: false, position: 'right', axisLabel: { color: C.muted, fontSize: 10.5, fontFamily: mono, formatter: v => v >= 1000 ? (v / 1000) + 'k' : v } }),
+      series: [
+        { type: 'bar', name: '成交量', data: dd.map((r, k) => ({ value: r.v, itemStyle: { color: r.v > vmaT[k] ? C.accent : '#2c3a58', borderRadius: [3, 3, 0, 0] } })), barMaxWidth: 8 },
+        { type: 'line', name: '20 日均量', data: vmaT.map(x => x == null ? null : Math.round(x)), showSymbol: false, lineStyle: { width: 2, color: C.warn }, itemStyle: { color: C.warn } },
+      ],
+    }, true);
+
+    // 15 關鍵價位
+    const levels = [
+      ['60 日高點', a.hi60], ['20 日高點（壓力）', a.hi20], ['布林上軌', a.up[i]], ['MA20', ma[2]], ['MA60', ma[3]],
+      ['價量密集區', a.poc], ['布林下軌', a.dn[i]], ['20 日低點（支撐）', a.lo20], ['60 日低點', a.lo60],
+    ].filter(x => x[1] != null);
+    levels.push(['今日收盤', P, true]);
+    levels.sort((x, y) => y[1] - x[1]);
+    document.getElementById('p-levels').innerHTML = `<table><thead><tr><th>價位</th><th>價格</th><th>與收盤距離</th></tr></thead><tbody>${
+      levels.map(([k, v, cur]) => `<tr class="${cur ? 'cur' : ''}"><td>${k}</td><td class="num">${fmt(v, pd)}</td><td class="num ${cur ? '' : cls(v - P)}">${cur ? '—' : sgn((v / P - 1) * 100, 1) + '%'}</td></tr>`).join('')}</tbody></table>`;
+
+    renderCross(a.s.code);
+  }
+
+  // ---------- 繪製：九檔比較 ----------
+  function renderCross(cur) {
+    const sorted = [...A].sort((x, y) => y.ret20 - x.ret20);
+    const lbl = x => `${x.s.name}`;
+    const hl = (x, color) => x.s.code === cur ? { color, borderColor: C.ink, borderWidth: 2 } : { color, opacity: .6 };
+    const axisY = names => xCat(names, { inverse: true, axisLabel: { color: C.ink2, fontSize: 11.5 } });
+    chart('c-ret').setOption({
+      animation: false, tooltip: tooltip({ axisPointer: { type: 'shadow' }, valueFormatter: v => sgn(v, 1) + '%' }),
+      grid: { left: 20, right: 50, top: 8, bottom: 20, containLabel: true },
+      xAxis: yVal({ scale: false, axisLabel: { color: C.muted, fontSize: 10.5, fontFamily: mono, formatter: '{value}%' } }), yAxis: axisY(sorted.map(lbl)),
+      series: [{ type: 'bar', data: sorted.map(x => ({ value: +(x.ret20 * 100).toFixed(1), itemStyle: hl(x, x.ret20 >= 0 ? C.up : C.down) })), barMaxWidth: 14,
+        label: { show: true, position: 'right', color: C.ink2, fontFamily: mono, fontSize: 10.5, formatter: p => sgn(p.value, 1) + '%' } }],
+    }, true);
+
+    // 相關性（以日期對齊）
+    const retMap = A.map(x => { const m = {}; x.d.forEach((r, k) => { if (k) m[r.date] = Math.log(r.c / x.d[k - 1].c); }); return m; });
+    const dates = tail(A.find(x => x.s.code === '2408').d.map(r => r.date)).slice(1);
+    const corr = (p, q) => { const ps = [], qs = []; dates.forEach(t => { if (p[t] != null && q[t] != null) { ps.push(p[t]); qs.push(q[t]); } });
+      const mp = ps.reduce((s, x) => s + x, 0) / ps.length, mq = qs.reduce((s, x) => s + x, 0) / qs.length;
+      let sxy = 0, sxx = 0, syy = 0; ps.forEach((x, k) => { sxy += (x - mp) * (qs[k] - mq); sxx += (x - mp) ** 2; syy += (qs[k] - mq) ** 2; });
+      return sxy / Math.sqrt(sxx * syy); };
+    const names = A.map(lbl), cells = [];
+    A.forEach((_, r) => A.forEach((_, c) => cells.push([c, r, +corr(retMap[r], retMap[c]).toFixed(2)])));
+    const ci = A.findIndex(x => x.s.code === cur);
+    chart('c-corr').setOption({
+      animation: false, tooltip: { backgroundColor: 'rgba(12,19,33,.96)', borderColor: C.line, textStyle: { color: C.ink, fontSize: 12 },
+        formatter: p => `${names[p.value[1]]} × ${names[p.value[0]]}<br><b style="font-family:${mono}">${p.value[2].toFixed(2)}</b>` },
+      grid: { left: 20, right: 8, top: 8, bottom: 8, containLabel: true },
+      xAxis: { type: 'category', data: names, axisLabel: { color: C.muted, fontSize: 10, rotate: 45, interval: 0 }, axisLine: { show: false }, axisTick: { show: false } },
+      yAxis: { type: 'category', data: names, inverse: true, axisLabel: { color: C.muted, fontSize: 10.5, interval: 0,
+        formatter: (v, k) => k === ci ? `{cur|${v}}` : v, rich: { cur: { color: C.ink, fontWeight: 700, fontSize: 10.5 } } }, axisLine: { show: false }, axisTick: { show: false } },
+      visualMap: { show: false, min: 0, max: 1, inRange: { color: ['#152036', '#1d3563', '#2f5fb8', '#4c8dff', '#9cc0ff'] } },
+      series: [{ type: 'heatmap', data: cells, itemStyle: { borderColor: C.panel, borderWidth: 2 },
+        label: { show: true, fontSize: 9.5, fontFamily: mono, formatter: p => p.value[2].toFixed(1), color: C.ink } }],
+    }, true);
+
+    const flow = [...A].map(x => ({ x, v: x.vol20 ? x.inst20 / x.vol20 * 100 : 0 })).sort((p, q) => q.v - p.v);
+    chart('c-flow').setOption({
+      animation: false, tooltip: tooltip({ axisPointer: { type: 'shadow' }, formatter: ps => { const f = flow[ps[0].dataIndex];
+        return `${f.x.s.name}<br>占成交量 <b>${sgn(f.v, 1)}%</b><br>法人 20 日 ${sgn(Math.round(f.x.inst20), 0)} 張`; } }),
+      grid: { left: 20, right: 50, top: 8, bottom: 20, containLabel: true },
+      xAxis: yVal({ scale: false, axisLabel: { color: C.muted, fontSize: 10.5, fontFamily: mono, formatter: '{value}%' } }), yAxis: axisY(flow.map(f => lbl(f.x))),
+      series: [{ type: 'bar', data: flow.map(f => ({ value: +f.v.toFixed(1), itemStyle: hl(f.x, f.v >= 0 ? C.up : C.down) })), barMaxWidth: 14,
+        label: { show: true, position: 'right', color: C.ink2, fontFamily: mono, fontSize: 10.5, formatter: p => sgn(p.value, 1) + '%' } }],
+    }, true);
+  }
+
+  // ---------- 股票切換 ----------
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = A.map(a => `<button class="tab" role="tab" id="tab-${a.s.code}" data-code="${a.s.code}" aria-selected="false">
+    <span class="t1"><b>${a.s.name}</b><span class="code">${a.s.code}</span></span>
+    <span class="t2 ${cls(a.chg)}">${fmt(last(a.c), priceDigits(last(a.c)))} ${sgn(a.chgPct * 100)}%</span></button>`).join('');
+  function select(code) {
+    if (!byCode[code]) code = A[0].s.code;
+    tabs.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.code === code));
+    renderStock(byCode[code]);
+    try { localStorage.setItem('ecf-stock', code); } catch (e) {}
+    if (location.hash.slice(1) !== code) history.replaceState(null, '', '#' + code);
+  }
+  tabs.addEventListener('click', e => { const t = e.target.closest('.tab'); if (t) select(t.dataset.code); });
+  let saved = location.hash.slice(1);
+  if (!saved) { try { saved = localStorage.getItem('ecf-stock'); } catch (e) {} }
+  select(saved);
+
+  echarts.connect(['c-k', 'c-kd', 'c-macd', 'c-rsi', 'c-boll', 'c-vol'].map(id => chart(id)));
+  const ro = new ResizeObserver(() => Object.values(charts).forEach(ch => ch.resize()));
+  document.querySelectorAll('.chart').forEach(el => ro.observe(el));
+
+  document.getElementById('note').innerHTML =
+    `資料來源：臺灣證券交易所、證券櫃檯買賣中心公開資料（收盤後），產生於 ${new Date(D.generatedAt).toLocaleString('zh-TW')}。` +
+    `評分與區間推估皆為規則化統計：趨勢看均線位置、動能看 RSI／MACD／KD、籌碼看 20 日法人買賣超占成交量、量能看 5 日與 20 日均量比、穩定度看 ATR。` +
+    `僅供研究參考，不構成投資建議。`;
+})();
+</script>

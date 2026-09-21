@@ -1,0 +1,13 @@
+services:
+  dashboard:
+    build: .
+    image: pcb-dashboard:latest
+    container_name: pcb-dashboard
+    ports:
+      - "8090:8080"   # 本機 8080 已被占用，改用 8090
+    environment:
+      TZ: Asia/Taipei
+      REFRESH_AT: "17:30"     # 每個交易日自動更新的時間（台北時間）
+    volumes:
+      - ./data:/data          # 快取與 data.js 保存在本機，重建容器不會遺失
+    restart: unless-stopped
