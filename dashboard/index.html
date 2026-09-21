@@ -823,6 +823,7 @@
 
   // ---------- 更新按鈕 ----------
   const btn = document.getElementById('refresh'), lbl = btn.querySelector('.lbl'), bar = btn.querySelector('.prog');
+  if (location.protocol === 'file:') btn.hidden = true;   // 直接開檔案沒有更新服務
   let toastTimer, polling = false, seenUpdate = null;
   function toast(msg, err) {
     document.querySelector('.toast')?.remove();
