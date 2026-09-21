@@ -117,24 +117,65 @@ async function fetchInstTPEx(date) {
   return map;
 }
 
+// 證交所即時報價（上市、上櫃都支援，一次查全部）。盤中或日 K 尚未公布時，用它補上當天的 K 棒
+async function fetchLive() {
+  const ex = STOCKS.map(s => `${s.market === 'TPEx' ? 'otc' : 'tse'}_${s.code}.tw`).join('|');
+  await sleep(DELAY);
+  try {
+    const res = await fetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(ex)}&json=1&delay=0&_=${Date.now()}`,
+      { headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://mis.twse.com.tw/stock/index.jsp' } });
+    const j = await res.json();
+    const map = {};
+    for (const r of j.msgArray ?? []) {
+      const c = num(r.z) ?? num(r.pz);          // z 為 "-" 代表最近一筆無成交
+      if (c == null || !r.d) continue;
+      map[r.c] = { date: `${r.d.slice(0, 4)}-${r.d.slice(4, 6)}-${r.d.slice(6)}`, time: r.t,
+        o: num(r.o) ?? c, h: Math.max(num(r.h) ?? c, c), l: Math.min(num(r.l) ?? c, c), c, v: num(r.v) ?? 0 };
+    }
+    return map;
+  } catch (e) {
+    console.warn('  ! 即時報價失敗：' + e.message);
+    return {};
+  }
+}
+
+// 讓 server.mjs 顯示進度：@@PROGRESS 已完成 總數 說明
+const progress = (done, total, label) => console.log(`@@PROGRESS ${done} ${total} ${label}`);
+
 async function main() {
   const out = { generatedAt: new Date().toISOString(), stocks: [] };
   const daily = {};
+  const total = STOCKS.length + 1 + INST_DAYS;
+  let step = 0;
   for (const s of STOCKS) {
+    progress(step, total, `日 K ${s.name}`);
     console.log(`日 K：${s.code} ${s.name}`);
     daily[s.code] = await fetchDaily(s);
     console.log(`  ${daily[s.code].length} 筆，最後 ${daily[s.code].at(-1)?.date}`);
+    step++;
   }
-  // 以最長的 TWSE 交易日序列當作交易日曆
+  // 法人日期以正式日 K 為準（不含盤中 K 棒）
   const dates = daily['2408'].map(r => r.date).slice(-INST_DAYS);
+
+  progress(step, total, '即時報價');
+  const live = await fetchLive();
+  for (const s of STOCKS) {
+    const q = live[s.code], rows = daily[s.code];
+    if (q && q.date > (rows.at(-1)?.date ?? '')) {
+      rows.push({ date: q.date, o: q.o, h: q.h, l: q.l, c: q.c, v: Math.round(q.v), amt: null, n: null, live: true, time: q.time });
+      console.log(`  ${s.name} 補上即時 K 棒 ${q.date} ${q.time} 價 ${q.c}`);
+    }
+  }
+  step++;
+
   const inst = {};
   for (const iso of dates) {
     const d = iso.replace(/-/g, '');
-    process.stdout.write(`法人：${iso}\r`);
+    progress(step++, total, `法人 ${iso.slice(5)}`);
     const [tw, tp] = [await fetchInstTWSE(d), await fetchInstTPEx(d)];
     inst[iso] = { ...(tw ?? {}), ...(tp ?? {}) };
   }
-  console.log();
+  progress(total, total, '寫入資料');
   for (const s of STOCKS) {
     const rows = daily[s.code];
     const instRows = dates.map(date => ({ date, ...(inst[date]?.[s.code] ?? {}) })).filter(r => r.total != null);

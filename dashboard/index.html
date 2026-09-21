@@ -34,26 +34,26 @@
   .brand { display: flex; align-items: baseline; gap: 10px; }
   .brand b { font: 900 20px/1 var(--sans); letter-spacing: .02em; }
   .brand span { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
-  .tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+  .tabs { order: 3; flex-basis: 100%; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
   .tab {
     appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2);
     border-radius: 6px; padding: 6px 10px; cursor: pointer; display: grid; gap: 1px; text-align: left;
-    font: 500 13px/1.25 var(--sans); min-width: 92px; transition: border-color .15s, background .15s;
+    font: 500 13px/1.25 var(--sans); min-width: 0; transition: border-color .15s, background .15s;
   }
   .tab:hover { border-color: #33415e; color: var(--ink); }
   .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .tab[aria-selected="true"] { background: #14223d; border-color: var(--accent); color: var(--ink); }
   .tab .t1 { display: flex; gap: 6px; align-items: baseline; }
   .tab .code { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-  .tab .t2 { font-family: var(--mono); font-size: 12px; }
+  .tab .t2 { font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* ---- KPI 列 ---- */
   .quote {
-    display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(8, minmax(0, 1fr)); gap: 1px;
+    display: grid; grid-template-columns: minmax(280px, 1.7fr) repeat(8, minmax(0, 1fr)); gap: 1px;
     background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 10px;
   }
   .quote > div { background: var(--panel); padding: 10px 14px; min-width: 0; }
-  .quote .id { display: flex; align-items: center; gap: 12px; }
+  .quote .id { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
   .quote .id .code { font: 700 26px/1 var(--mono); }
   .quote .id .name { font: 700 18px/1.2 var(--sans); }
   .quote .id .mkt { font-size: 11px; color: var(--ink-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; }
@@ -102,6 +102,67 @@
   .meter .track { height: 6px; background: var(--panel-2); border-radius: 99px; margin-top: 4px; overflow: hidden; }
   .meter .track i { display: block; height: 100%; border-radius: 99px; }
 
+  /* ---- 置頂列：更新按鈕 ---- */
+  .topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; padding-block: 10px; margin-top: -10px;
+    background: rgba(10,16,28,.92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid transparent; }
+  .topbar.stuck { border-bottom-color: var(--line); }
+  .actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .stamp { color: var(--muted); font-size: 12px; text-align: right; line-height: 1.35; }
+  .stamp b { color: var(--ink-2); font-weight: 500; font-family: var(--mono); }
+  .live-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--up); margin-right: 5px; vertical-align: 1px; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .btn { appearance: none; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; cursor: pointer;
+    font: 700 13px/1 var(--sans); padding: 9px 14px; display: inline-flex; align-items: center; gap: 7px; position: relative; overflow: hidden; min-width: 118px; justify-content: center; }
+  .btn:hover { background: #3f7ef0; }
+  .btn:focus-visible { outline: 2px solid #9cc0ff; outline-offset: 2px; }
+  .btn[disabled] { cursor: progress; background: #13233f; color: var(--ink); }
+  .btn .ico { display: inline-block; font-size: 15px; line-height: 1; }
+  .btn[disabled] .ico { animation: spin 1s linear infinite; }
+  .btn .prog { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); width: 0; transition: width .3s; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 30; max-width: min(420px, calc(100vw - 32px));
+    background: #16233d; border: 1px solid var(--line); border-left: 3px solid var(--accent); color: var(--ink); padding: 10px 14px; border-radius: 6px;
+    font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+  .toast.err { border-left-color: var(--up); }
+
+  /* 面板內切換 */
+  .panel > header .seg { margin-left: auto; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { appearance: none; border: 0; background: transparent; color: var(--muted); font: 500 12px/1 var(--sans); padding: 6px 10px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-selected="true"] { background: #14223d; color: var(--ink); font-weight: 700; }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* 朱家泓 */
+  .chu-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; background: var(--panel-2); border-radius: 6px; margin-bottom: 4px; }
+  .chu-head .trend { font: 900 20px/1 var(--sans); }
+  .chu-head .pos { font-weight: 700; }
+  .chu-head .why { color: var(--ink-2); font-size: 12px; flex-basis: 100%; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .checks > div { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+  .checks h3 { margin: 0 0 6px; font-size: 12.5px; display: flex; justify-content: space-between; }
+  .checks ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12px; color: var(--ink-2); }
+  .checks li { display: grid; grid-template-columns: 16px 1fr; gap: 4px; }
+  .checks li.ok { color: var(--ink); }
+  .checks li::before { content: "○"; color: var(--muted); }
+  .checks .long li.ok::before { content: "●"; color: var(--up); }
+  .checks .short li.ok::before { content: "●"; color: var(--down); }
+  .plan { margin-top: 10px; border-radius: 6px; padding: 9px 11px; background: var(--panel-2); display: grid; gap: 4px; font-size: 12.5px; }
+  .plan .verdict { font-weight: 900; font-size: 15px; }
+  .plan span { color: var(--ink-2); }
+  .dots { letter-spacing: 2px; font-size: 11px; }
+  .dots.long { color: var(--up); } .dots.short { color: var(--down); }
+  .dots i { font-style: normal; color: #34425f; }
+
+  /* 掃描表 */
+  .s12 { grid-column: span 12; }
+  .scan tbody tr { cursor: pointer; }
+  .scan tbody tr:hover td { background: #131f35; }
+  .scan td:first-child button { appearance: none; background: none; border: 0; color: var(--ink); font: 700 13px var(--sans); cursor: pointer; padding: 0; }
+  .scan td:first-child button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .scan td:first-child .code { font: 400 11px var(--mono); color: var(--muted); margin-left: 6px; }
+  .scan td.l, .scan th.l { text-align: left; }
+
   .note { color: var(--muted); font-size: 12px; margin-top: 16px; line-height: 1.7; max-width: 90ch; }
   .empty { color: var(--muted); padding: 30px 0; text-align: center; }
 
@@ -110,6 +171,7 @@
     .quote .id { grid-column: 1 / -1; }
   }
   @media (max-width: 1100px) {
+    .tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .s3, .s4, .s5 { grid-column: span 6; }
     .s6, .s7, .s8 { grid-column: span 12; }
   }
@@ -117,23 +179,39 @@
     .grid > .panel { grid-column: span 12; }
     .quote { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .tall .chart { height: 320px; }
-    .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); order: 3; flex-basis: 100%; }
     .tab { min-width: 0; }
+    .topbar { position: static; }
+    .checks { grid-template-columns: 1fr; }
   }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
 <div class="topbar">
   <div class="brand"><b>PCB 九檔儀表板</b><span>ECF · 載板 / 銅箔 / 記憶體</span></div>
-  <nav class="tabs" id="tabs" role="tablist" aria-label="選擇股票"></nav>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="選擇股票（可用左右方向鍵切換）"></nav>
+  <div class="actions">
+    <div class="stamp" id="stamp"></div>
+    <button class="btn" id="refresh" type="button" title="立即從證交所、櫃買中心抓取最新資料（盤中會帶入即時報價）">
+      <span class="ico" aria-hidden="true">↻</span><span class="lbl">更新資料</span><span class="prog"></span>
+    </button>
+  </div>
 </div>
+<p class="empty" id="empty" hidden>資料尚未產生。按右上角「更新資料」或等待自動抓取（首次約 8 分鐘），完成後會自動顯示。</p>
 
 <section class="quote" id="quote" aria-live="polite"></section>
 <div class="meta" id="meta"></div>
 
 <main class="grid">
-  <section class="panel s8 tall"><header><span class="tag">01</span><h2>主 K 線圖</h2><span class="sub">近 60 日 · MA5 / 10 / 20 / 60 · 虛線為 20 日壓力、支撐</span></header><div class="chart" id="c-k"></div></section>
-  <section class="panel s4"><header><span class="tag">02</span><h2>技術訊號摘要</h2><span class="sub">規則判讀，非投資建議</span></header><div id="p-sig"></div></section>
+  <section class="panel s8 tall"><header><span class="tag">01</span><h2>主 K 線圖</h2><span class="sub">近 60 日 · MA5 / 10 / 20 / 60 · 虛線為 20 日壓力、支撐 · <span style="color:var(--warn)">▼頭 ▲底</span> 為朱家泓轉折點</span></header><div class="chart" id="c-k"></div></section>
+  <section class="panel s4"><header><span class="tag">02</span><h2>技術指標</h2>
+      <div class="seg" role="tablist" aria-label="指標檢視">
+        <button type="button" role="tab" id="seg-chu" data-view="chu" aria-selected="true">朱家泓指標</button>
+        <button type="button" role="tab" id="seg-tech" data-view="tech" aria-selected="false">一般指標</button>
+      </div></header>
+    <div id="p-chu"></div>
+    <div id="p-sig" hidden></div>
+  </section>
 
   <section class="panel s4"><header><span class="tag">03</span><h2>KD 指標</h2><span class="sub">9, 3, 3</span></header><div class="chart" id="c-kd"></div></section>
   <section class="panel s4"><header><span class="tag">04</span><h2>MACD</h2><span class="sub">12, 26, 9 · 柱狀為 OSC</span></header><div class="chart" id="c-macd"></div></section>
@@ -155,6 +233,8 @@
   <section class="panel s4"><header><span class="tag">16</span><h2>九檔近 20 日報酬</h2><span class="sub">目前個股以白框標示</span></header><div class="chart" id="c-ret"></div></section>
   <section class="panel s4"><header><span class="tag">17</span><h2>九檔報酬相關性</h2><span class="sub">近 60 日日報酬</span></header><div class="chart" id="c-corr"></div></section>
   <section class="panel s4"><header><span class="tag">18</span><h2>九檔法人力道</h2><span class="sub">近 20 日法人買賣超 ÷ 成交量</span></header><div class="chart" id="c-flow"></div></section>
+
+  <section class="panel s12"><header><span class="tag">19</span><h2>朱家泓策略・九檔掃描</h2><span class="sub">趨勢、均線、K 線、量能四條件；點選列可切換個股</span></header><div class="tbl-wrap" id="p-scan"></div></section>
 </main>
 
 <p class="note" id="note"></p>
@@ -163,9 +243,11 @@
 <script src="vendor/echarts.min.js"></script>
 <script>window.echarts || document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"><\/script>');</script>
 <script src="data.js"></script>
+<!-- 直接開啟本機檔案時（沒有伺服器），改讀 data/ 資料夾裡的資料 -->
+<script>window.STOCK_DATA || document.write('<script src="data/data.js"><\/script>');</script>
 <script>
 (() => {
-  const D = window.STOCK_DATA;
+  let D = window.STOCK_DATA;
   const C = {
     ground: '#0a101c', panel: '#101828', panel2: '#152036', line: '#1f2a40', grid: '#1a2438',
     ink: '#e3e9f3', ink2: '#a7b3c7', muted: '#6f7d94', accent: '#4c8dff', up: '#f0524d', down: '#1fb37a', warn: '#f2b233',
@@ -174,11 +256,6 @@
   };
   const WIN = 60;
   const mono = 'JetBrains Mono, Consolas, monospace';
-
-  if (!D || !D.stocks?.length) {
-    document.querySelector('main').innerHTML = '<p class="empty" style="grid-column:1/-1">資料尚未產生。首次啟動會自動從證交所、櫃買中心抓取（約 8 分鐘），完成後重新整理此頁即可。</p>';
-    return;
-  }
 
   // ---------- 指標計算 ----------
   const sma = (a, n) => a.map((_, i) => i < n - 1 ? null : a.slice(i - n + 1, i + 1).reduce((s, x) => s + x, 0) / n);
@@ -255,8 +332,81 @@
       ret20: c[i] / c[Math.max(0, i - 20)] - 1, chg: cl - c[i - 1], chgPct: cl / c[i - 1] - 1 };
   }
 
-  const A = D.stocks.map(analyze);
-  const byCode = Object.fromEntries(A.map(a => [a.s.code, a]));
+  // ---------- 朱家泓策略（規則化） ----------
+  // 轉折波：收盤在 MA5 之上為正價群組、之下為負價群組；
+  // 正價群組的最高點為「頭」，負價群組的最低點為「底」。最後一段尚在進行中，不列入型態比較。
+  function swings(a) {
+    const d = a.d, ma5 = a.ma[0], groups = [];
+    d.forEach((r, i) => {
+      if (ma5[i] == null) return;
+      const side = r.c >= ma5[i] ? 1 : -1, g = last(groups);
+      if (!g || g.side !== side) groups.push({ side, start: i, end: i }); else g.end = i;
+    });
+    const pts = groups.map((g, k) => {
+      let idx = g.start;
+      for (let i = g.start; i <= g.end; i++) if (g.side > 0 ? d[i].h > d[idx].h : d[i].l < d[idx].l) idx = i;
+      return { type: g.side > 0 ? 'peak' : 'trough', i: idx, p: g.side > 0 ? d[idx].h : d[idx].l, ongoing: k === groups.length - 1 };
+    });
+    return { pts, ongoing: last(groups), peaks: pts.filter(p => p.type === 'peak' && !p.ongoing), troughs: pts.filter(p => p.type === 'trough' && !p.ongoing) };
+  }
+
+  function chu(a) {
+    const d = a.d, i = d.length - 1, r = d[i], prev = d[i - 1];
+    const sw = swings(a), P1 = last(sw.peaks), P0 = sw.peaks.at(-2), T1 = last(sw.troughs), T0 = sw.troughs.at(-2);
+    const up = sw.ongoing.side > 0;
+    const hh = P1 && P0 && P1.p > P0.p, hl = T1 && T0 && T1.p > T0.p, lh = P1 && P0 && P1.p < P0.p, ll = T1 && T0 && T1.p < T0.p;
+
+    let trend = hh && hl ? '多頭' : lh && ll ? '空頭' : '盤整';
+    let why = hh && hl ? '頭頭高、底底高' : lh && ll ? '頭頭低、底底低' : '高低點未同向';
+    if (trend === '多頭' && r.c < T1.p) { trend = '盤整'; why = `跌破前低 ${fmt(T1.p, 1)}，多頭型態破壞`; }
+    else if (trend === '空頭' && r.c > P1.p) { trend = '盤整'; why = `突破前高 ${fmt(P1.p, 1)}，空頭型態破壞`; }
+    else if (trend === '盤整' && hl && P1 && r.c > P1.p) { trend = '多頭'; why = `底底高且突破前高 ${fmt(P1.p, 1)}，多頭確立`; }
+    else if (trend === '盤整' && lh && T1 && r.c < T1.p) { trend = '空頭'; why = `頭頭低且跌破前低 ${fmt(T1.p, 1)}，空頭確立`; }
+    const pos = trend === '多頭' ? (up ? '多頭上漲波' : '多頭回檔')
+      : trend === '空頭' ? (up ? '空頭反彈' : '空頭下跌波')
+      : (up ? '盤整・上漲段' : '盤整・下跌段');
+
+    // 均線
+    const m = k => a.ma[k][i], sl = k => a.ma[k][i] - a.ma[k][i - 1];
+    const bull = m(0) > m(1) && m(1) > m(2), bear = m(0) < m(1) && m(1) < m(2);
+    const up3 = [0, 1, 2].every(k => sl(k) > 0), dn3 = [0, 1, 2].every(k => sl(k) < 0);
+    const maText = bull && up3 ? (m(3) != null && m(2) > m(3) && sl(3) > 0 ? '四線多排上揚' : '三線多排上揚')
+      : bear && dn3 ? (m(3) != null && m(2) < m(3) && sl(3) < 0 ? '四線空排下彎' : '三線空排下彎')
+      : bull ? '多頭排列' : bear ? '空頭排列' : '均線糾結';
+    const arrows = [0, 1, 2, 3].map(k => m(k) == null ? '' : `<span class="${cls(sl(k))}">${[5, 10, 20, 60][k]}${sl(k) > 0 ? '↑' : sl(k) < 0 ? '↓' : '→'}</span>`).join(' ');
+
+    // K 線與量
+    const body = (r.c - r.o) / prev.c * 100;
+    const kType = Math.abs(body) < .3 ? '十字線（變盤）' : body >= 2 ? '長紅 K' : body > 0 ? '紅 K' : body <= -2 ? '長黑 K' : '黑 K';
+    const v5 = d.slice(i - 5, i).reduce((s, x) => s + x.v, 0) / 5, vr = r.v / v5;
+    const volUp = vr >= 1.2;
+
+    const L = [
+      [trend === '多頭', '趨勢：頭頭高、底底高'],
+      [bull && up3, '均線：5 > 10 > 20 且三線上揚'],
+      [r.c > r.o && r.c > m(0) && r.c > prev.h, 'K 線：紅 K 站上 MA5、過前日高'],
+      [volUp && r.c > r.o, '量能：量增（≥ 5 日均量 1.2 倍）'],
+    ];
+    const S = [
+      [trend === '空頭', '趨勢：頭頭低、底底低'],
+      [bear && dn3, '均線：5 < 10 < 20 且三線下彎'],
+      [r.c < r.o && r.c < m(0) && r.c < prev.l, 'K 線：黑 K 跌破 MA5、破前日低'],
+      [volUp && r.c < r.o, '量能：量增（≥ 5 日均量 1.2 倍）'],
+    ];
+    const lc = L.filter(x => x[0]).length, sc = S.filter(x => x[0]).length;
+
+    let verdict, vcls;
+    if (lc === 4) { verdict = '做多進場訊號'; vcls = 'up'; }
+    else if (sc === 4) { verdict = '做空進場訊號'; vcls = 'down'; }
+    else if (trend === '多頭') { verdict = up ? '多頭續抱，守 MA5' : (lc >= 2 ? '多頭回檔，等待止跌紅 K' : '多頭回檔，觀察前低'); vcls = 'up'; }
+    else if (trend === '空頭') { verdict = up ? '空頭反彈，不追多' : '空頭走勢，避開做多'; vcls = 'down'; }
+    else { verdict = '盤整，等待突破方向'; vcls = 'flat'; }
+
+    return { sw, P0, P1, T0, T1, trend, why, pos, up, maText, arrows, sl2: sl(2), kType, body, vr, L, S, lc, sc, verdict, vcls,
+      ma5: m(0), ma20: m(2), low: r.l, high: r.h, live: !!r.live };
+  }
+
+  let A = [], byCode = {};
 
   // ---------- 格式 ----------
   const fmt = (x, d = 2) => x == null || !Number.isFinite(x) ? '—' : x.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -301,11 +451,13 @@
       ['最低', fmt(L.l, pd), ''],
     ];
     document.getElementById('quote').innerHTML =
-      `<div class="id"><span class="code">${a.s.code}</span><span class="name">${a.s.name}</span><span class="mkt">${a.s.market === 'TPEx' ? '上櫃' : '上市'}</span></div>` +
+      `<div class="id"><span class="code">${a.s.code}</span><span class="name">${a.s.name}</span><span class="mkt">${a.s.market === 'TPEx' ? '上櫃' : '上市'}</span>` +
+      `<span class="pill ${a.chu.vcls}" title="朱家泓趨勢判讀">${a.chu.trend}</span></div>` +
       q.map(([k, v, c]) => `<div><label>${k}</label><span class="v ${c}">${v}</span></div>`).join('');
     document.getElementById('meta').innerHTML =
       `<span>資料日 <b>${L.date}</b></span><span>日 K <b>${n}</b> 日（顯示近 ${WIN} 日）</span><span>法人 <b>${a.inst.length}</b> 日</span>` +
-      `<span>來源 <b>${a.s.market === 'TPEx' ? '櫃買中心' : '證交所'}</b></span><span>收盤後資料，非即時行情</span>`;
+      `<span>來源 <b>${a.s.market === 'TPEx' ? '櫃買中心' : '證交所'}</b></span>` +
+      (L.live ? `<span><span class="live-dot"></span><b>盤中即時 ${L.time?.slice(0, 5) ?? ''}</b>（今日 K 棒與成交量尚未收盤，量能判讀會偏低）</span>` : '<span>收盤後資料</span>');
 
     // 01 K 線
     const lvl = (y, name, color) => ({ yAxis: y, name, lineStyle: { color, type: 'dashed', width: 1 }, label: { formatter: `${name} ${fmt(y, pd)}`, color, fontSize: 10.5, fontFamily: mono, position: 'insideEndTop' } });
@@ -318,7 +470,13 @@
       series: [
         { type: 'candlestick', name: 'K 線', data: dd.map(r => [r.o, r.c, r.l, r.h]),
           itemStyle: { color: C.up, color0: C.down, borderColor: C.up, borderColor0: C.down },
-          markLine: { symbol: 'none', silent: true, data: [lvl(a.hi20, '壓力', C.up), lvl(a.lo20, '支撐', C.down)] } },
+          markLine: { symbol: 'none', silent: true, data: [lvl(a.hi20, '壓力', C.up), lvl(a.lo20, '支撐', C.down)] },
+          markPoint: { silent: true, animation: false, data: a.chu.sw.pts.filter(p => p.i >= n - WIN).map(p => {
+            const pk = p.type === 'peak';
+            return { coord: [p.i - (n - WIN), p.p], symbol: 'triangle', symbolSize: 7, symbolRotate: pk ? 180 : 0, symbolOffset: [0, pk ? -7 : 7],
+              itemStyle: { color: C.warn, opacity: p.ongoing ? .45 : 1 },
+              label: { show: true, position: pk ? 'top' : 'bottom', distance: 3, formatter: pk ? '頭' : '底', color: C.warn, fontSize: 10, opacity: p.ongoing ? .6 : 1 } };
+          }) } },
         ...['MA5', 'MA10', 'MA20', 'MA60'].map((nm, k) => ({ type: 'line', name: nm, data: tail(a.ma[k]).map(r2), showSymbol: false, smooth: false,
           lineStyle: { width: k === 3 ? 1.5 : 1.5, color: C.ma[k], type: k === 3 ? 'dashed' : 'solid' }, itemStyle: { color: C.ma[k] } })),
         { type: 'bar', name: '成交量', xAxisIndex: 1, yAxisIndex: 1, data: dd.map(r => ({ value: r.v, itemStyle: { color: r.c >= r.o ? C.up : C.down, opacity: .75 } })), barMaxWidth: 8 },
@@ -412,6 +570,33 @@
       <div class="score"><span class="big" style="color:${scoreColor}">${a.composite}</span>
         <div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:12px;color:${C.ink2}"><span>綜合評分</span>${pill(verdict)}</div>
         <div class="bar"><i style="width:${a.composite}%;background:${scoreColor}"></i></div></div></div>`;
+
+    // 02 朱家泓指標
+    const z = a.chu, px = x => x ? fmt(x.p, pd) : '—';
+    const cmp = (x1, x0) => !x1 || !x0 ? '' : x1.p > x0.p ? '<span class="up">↑ 墊高</span>' : x1.p < x0.p ? '<span class="down">↓ 降低</span>' : '→ 持平';
+    const list = (rows, kind) => `<ul>${rows.map(([ok, t]) => `<li class="${ok ? 'ok' : ''}">${t}</li>`).join('')}</ul>`;
+    const longSide = z.trend !== '空頭' && z.lc >= z.sc;
+    document.getElementById('p-chu').innerHTML = `
+      <div class="chu-head"><span class="trend ${z.vcls}">${z.trend}</span><span class="pos">${z.pos}</span><span class="why">${z.why}</span></div>
+      <dl class="sig">
+        <div><dt>波浪・頭</dt><dd class="num">${px(z.P0)} → ${px(z.P1)} ${cmp(z.P1, z.P0)}</dd></div>
+        <div><dt>波浪・底</dt><dd class="num">${px(z.T0)} → ${px(z.T1)} ${cmp(z.T1, z.T0)}</dd></div>
+        <div><dt>均線</dt><dd>${pill([z.maText, /多/.test(z.maText) ? 'up' : /空/.test(z.maText) ? 'down' : 'flat'])}<span class="num" style="font-size:12px">${z.arrows}</span></dd></div>
+        <div><dt>月線 MA20</dt><dd><span class="num">${fmt(z.ma20, pd)}</span> ${z.sl2 > 0 ? '<span class="up">上揚</span>' : '<span class="down">下彎</span>'}・收盤${a.c[i] >= z.ma20 ? '站上' : '跌破'}月線</dd></div>
+        <div><dt>K 線 / 量</dt><dd><span class="${cls(z.body)}">${z.kType}</span> <span class="num">${sgn(z.body, 1)}%</span>・量 <span class="num">${fmt(z.vr, 2)}</span> 倍${z.live ? '（盤中）' : ''}</dd></div>
+      </dl>
+      <div class="checks">
+        <div class="long"><h3><span>做多四條件</span><span class="num up">${z.lc}/4</span></h3>${list(z.L)}</div>
+        <div class="short"><h3><span>做空四條件</span><span class="num down">${z.sc}/4</span></h3>${list(z.S)}</div>
+      </div>
+      <div class="plan">
+        <div class="verdict ${z.vcls}">${z.verdict}</div>
+        ${longSide
+          ? `<div><span>多單停損：</span><b class="num">${fmt(z.low, pd)}</b> <span>（進場 K 低點）／前低 </span><b class="num">${px(z.T1)}</b></div>
+             <div><span>短線出場：收盤跌破 MA5 </span><b class="num">${fmt(z.ma5, pd)}</b></div>`
+          : `<div><span>空單停損：</span><b class="num">${fmt(z.high, pd)}</b> <span>（進場 K 高點）／前高 </span><b class="num">${px(z.P1)}</b></div>
+             <div><span>短線回補：收盤站上 MA5 </span><b class="num">${fmt(z.ma5, pd)}</b></div>`}
+      </div>`;
 
     // 09 雷達
     const sc = a.scores;
@@ -555,30 +740,144 @@
     }, true);
   }
 
+  // ---------- 19 朱家泓九檔掃描 ----------
+  function renderScan(cur) {
+    const dots = (n, kind) => `<span class="dots ${kind}">${'●'.repeat(n)}<i>${'●'.repeat(4 - n)}</i></span>`;
+    const rows = A.map(a => { const z = a.chu, pd = priceDigits(last(a.c));
+      return `<tr data-code="${a.s.code}" class="${a.s.code === cur ? 'cur' : ''}">
+        <td><button type="button">${a.s.name}</button><span class="code">${a.s.code}</span></td>
+        <td class="num">${fmt(last(a.c), pd)}</td><td class="num ${cls(a.chg)}">${sgn(a.chgPct * 100)}%</td>
+        <td class="l"><span class="pill ${z.vcls}">${z.trend}</span></td><td class="l">${z.pos}</td><td class="l">${z.maText}</td>
+        <td class="num">${fmt(z.ma5, pd)}</td><td class="num">${z.T1 ? fmt(z.T1.p, pd) : '—'}</td><td class="num">${z.P1 ? fmt(z.P1.p, pd) : '—'}</td>
+        <td>${dots(z.lc, 'long')}</td><td>${dots(z.sc, 'short')}</td>
+        <td class="l"><b class="${z.vcls}">${z.verdict}</b></td></tr>`; }).join('');
+    document.getElementById('p-scan').innerHTML = `<table class="scan"><thead><tr>
+      <th>股票</th><th>收盤</th><th>漲跌幅</th><th class="l">趨勢</th><th class="l">波段位置</th><th class="l">均線</th>
+      <th>MA5</th><th>前低（底）</th><th>前高（頭）</th><th>做多條件</th><th>做空條件</th><th class="l">策略判讀</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  document.getElementById('p-scan').addEventListener('click', e => { const tr = e.target.closest('tr[data-code]'); if (tr) { select(tr.dataset.code); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+
+  // ---------- 02 檢視切換 ----------
+  const segBtns = [...document.querySelectorAll('.seg button')];
+  function setView(v) {
+    segBtns.forEach(b => b.setAttribute('aria-selected', b.dataset.view === v));
+    document.getElementById('p-chu').hidden = v !== 'chu';
+    document.getElementById('p-sig').hidden = v !== 'tech';
+    try { localStorage.setItem('ecf-view', v); } catch (e) {}
+  }
+  segBtns.forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+  try { setView(localStorage.getItem('ecf-view') || 'chu'); } catch (e) { setView('chu'); }
+
   // ---------- 股票切換 ----------
   const tabs = document.getElementById('tabs');
-  tabs.innerHTML = A.map(a => `<button class="tab" role="tab" id="tab-${a.s.code}" data-code="${a.s.code}" aria-selected="false">
-    <span class="t1"><b>${a.s.name}</b><span class="code">${a.s.code}</span></span>
-    <span class="t2 ${cls(a.chg)}">${fmt(last(a.c), priceDigits(last(a.c)))} ${sgn(a.chgPct * 100)}%</span></button>`).join('');
+  let current = location.hash.slice(1);
+  if (!current) { try { current = localStorage.getItem('ecf-stock'); } catch (e) {} }
+  function renderTabs() {
+    tabs.innerHTML = A.map(a => `<button class="tab" role="tab" id="tab-${a.s.code}" data-code="${a.s.code}" aria-selected="false">
+      <span class="t1"><b>${a.s.name}</b><span class="code">${a.s.code}</span></span>
+      <span class="t2 ${cls(a.chg)}">${fmt(last(a.c), priceDigits(last(a.c)))} ${sgn(a.chgPct * 100)}%</span></button>`).join('');
+  }
   function select(code) {
     if (!byCode[code]) code = A[0].s.code;
+    current = code;
     tabs.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.code === code));
     renderStock(byCode[code]);
+    renderScan(code);
     try { localStorage.setItem('ecf-stock', code); } catch (e) {}
     if (location.hash.slice(1) !== code) history.replaceState(null, '', '#' + code);
   }
   tabs.addEventListener('click', e => { const t = e.target.closest('.tab'); if (t) select(t.dataset.code); });
-  let saved = location.hash.slice(1);
-  if (!saved) { try { saved = localStorage.getItem('ecf-stock'); } catch (e) {} }
-  select(saved);
+  document.addEventListener('keydown', e => {
+    if (!A.length || e.altKey || e.ctrlKey || e.metaKey || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const k = A.findIndex(a => a.s.code === current), next = A[(k + (e.key === 'ArrowRight' ? 1 : A.length - 1)) % A.length];
+    select(next.s.code); document.getElementById('tab-' + next.s.code)?.focus({ preventScroll: true });
+  });
 
+  // ---------- 載入 / 重新載入資料 ----------
+  function boot() {
+    const ok = !!D?.stocks?.length;
+    document.getElementById('empty').hidden = ok;
+    document.querySelector('main').hidden = !ok;
+    if (!ok) return;
+    A = D.stocks.map(s => { const a = analyze(s); a.chu = chu(a); return a; });
+    byCode = Object.fromEntries(A.map(a => [a.s.code, a]));
+    renderTabs();
+    select(current);
+    const g = new Date(D.generatedAt), live = A.some(a => last(a.d).live);
+    document.getElementById('stamp').innerHTML = `${live ? '<span class="live-dot"></span>含盤中報價<br>' : '資料更新於<br>'}<b>${g.toLocaleString('zh-TW', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}</b>`;
+    document.getElementById('note').innerHTML =
+      `資料來源：臺灣證券交易所、證券櫃檯買賣中心公開資料${live ? '，盤中時段以證交所即時報價補上當日 K 棒' : ''}，產生於 ${g.toLocaleString('zh-TW')}。` +
+      `朱家泓指標為依其公開著作常見方法整理的規則化版本：以收盤相對 MA5 劃分轉折波判斷頭、底，並以趨勢、均線、K 線、量能四條件判讀進出場；量增門檻（5 日均量 1.2 倍）為本儀表板自訂。` +
+      `評分與區間推估皆為規則化統計。僅供研究參考，不構成投資建議。`;
+  }
+  function loadData() {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'data.js?t=' + Date.now();
+      s.onload = () => { D = window.STOCK_DATA; s.remove(); resolve(); };
+      s.onerror = () => { s.remove(); reject(new Error('讀取 data.js 失敗')); };
+      document.head.appendChild(s);
+    });
+  }
+
+  // ---------- 更新按鈕 ----------
+  const btn = document.getElementById('refresh'), lbl = btn.querySelector('.lbl'), bar = btn.querySelector('.prog');
+  let toastTimer, polling = false, seenUpdate = null;
+  function toast(msg, err) {
+    document.querySelector('.toast')?.remove();
+    const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.setAttribute('role', 'status'); t.textContent = msg;
+    document.body.appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 6000);
+  }
+  function setBusy(p) {
+    btn.disabled = !!p;
+    if (!p) { lbl.textContent = '更新資料'; bar.style.width = '0'; return; }
+    const pct = p.total ? Math.round(p.done / p.total * 100) : 0;
+    lbl.textContent = `更新中 ${pct}%`; bar.style.width = pct + '%'; btn.title = p.label || '';
+  }
+  async function status() { const r = await fetch('api/status', { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
+  async function poll() {
+    if (polling) return; polling = true;
+    try {
+      for (;;) {
+        const s = await status();
+        if (s.running) { setBusy(s.progress || { done: 0, total: 1 }); await new Promise(r => setTimeout(r, 1000)); continue; }
+        setBusy(null);
+        if (s.lastError) { toast('更新失敗：' + s.lastError, true); break; }
+        seenUpdate = s.dataUpdatedAt;
+        await loadData(); boot();
+        const liveN = A.filter(a => last(a.d).live).length;
+        toast(`已更新：資料日 ${last(A[0].d).date}${liveN ? `（${liveN} 檔含盤中即時價）` : ''}`);
+        break;
+      }
+    } catch (e) { setBusy(null); toast('無法取得更新狀態：' + e.message, true); }
+    polling = false;
+  }
+  btn.addEventListener('click', async () => {
+    setBusy({ done: 0, total: 1, label: '啟動中' });
+    try {
+      const r = await fetch('api/refresh', { method: 'POST' });
+      if (r.status === 404) throw new Error('此頁面不是從 Docker 服務開啟，無法更新');
+      if (!r.ok && r.status !== 409) throw new Error('HTTP ' + r.status);
+      poll();
+    } catch (e) { setBusy(null); toast(e.message, true); }
+  });
+  // 開頁時若排程正在跑就接著顯示進度；之後每分鐘檢查是否有排程更新，有就自動載入
+  (async () => {
+    try { const s = await status(); seenUpdate = s.dataUpdatedAt; if (s.running) poll(); } catch (e) { btn.hidden = true; return; }
+    setInterval(async () => {
+      if (polling) return;
+      try { const s = await status(); if (s.running) poll(); else if (s.dataUpdatedAt && s.dataUpdatedAt !== seenUpdate) { seenUpdate = s.dataUpdatedAt; await loadData(); boot(); toast('已載入排程更新的資料'); } } catch (e) {}
+    }, 60_000);
+  })();
+
+  // 置頂列捲動後加上分隔線
+  const topbar = document.querySelector('.topbar');
+  addEventListener('scroll', () => topbar.classList.toggle('stuck', scrollY > 4), { passive: true });
+
+  boot();
   echarts.connect(['c-k', 'c-kd', 'c-macd', 'c-rsi', 'c-boll', 'c-vol'].map(id => chart(id)));
   const ro = new ResizeObserver(() => Object.values(charts).forEach(ch => ch.resize()));
   document.querySelectorAll('.chart').forEach(el => ro.observe(el));
-
-  document.getElementById('note').innerHTML =
-    `資料來源：臺灣證券交易所、證券櫃檯買賣中心公開資料（收盤後），產生於 ${new Date(D.generatedAt).toLocaleString('zh-TW')}。` +
-    `評分與區間推估皆為規則化統計：趨勢看均線位置、動能看 RSI／MACD／KD、籌碼看 20 日法人買賣超占成交量、量能看 5 日與 20 日均量比、穩定度看 ATR。` +
-    `僅供研究參考，不構成投資建議。`;
 })();
 </script>

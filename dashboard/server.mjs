@@ -16,7 +16,7 @@ const PORT = +(process.env.PORT || 8080);
 const REFRESH_AT = process.env.REFRESH_AT || '17:30';   // 台北時間，週一到週五
 const DATA_FILE = path.join(DATA_DIR, 'data.js');
 
-const state = { running: false, lastStart: null, lastEnd: null, lastOk: null, lastError: null, lastRunDay: null };
+const state = { running: false, lastStart: null, lastEnd: null, lastOk: null, lastError: null, lastRunDay: null, progress: null };
 const log = (...a) => console.log(new Date().toLocaleString('zh-TW', { hour12: false }), ...a);
 
 function refresh(reason) {
@@ -24,11 +24,20 @@ function refresh(reason) {
   state.running = true; state.lastStart = new Date().toISOString(); state.lastError = null;
   log(`開始更新資料（${reason}）`);
   const child = spawn(process.execPath, [path.join(DIR, 'fetch.mjs')], { env: { ...process.env, DATA_DIR }, stdio: ['ignore', 'pipe', 'pipe'] });
-  let errTail = '';
-  child.stdout.on('data', b => process.stdout.write(b));
+  let errTail = '', outBuf = '';
+  state.progress = { done: 0, total: 1, label: '準備中' };
+  child.stdout.on('data', b => {
+    outBuf += b;
+    const lines = outBuf.split('\n'); outBuf = lines.pop();
+    for (const line of lines) {
+      const m = line.match(/^@@PROGRESS (\d+) (\d+) (.*)$/);
+      if (m) state.progress = { done: +m[1], total: +m[2], label: m[3].trim() };
+      else process.stdout.write(line + '\n');
+    }
+  });
   child.stderr.on('data', b => { process.stderr.write(b); errTail = (errTail + b).slice(-2000); });
   child.on('close', code => {
-    state.running = false; state.lastEnd = new Date().toISOString();
+    state.running = false; state.lastEnd = new Date().toISOString(); state.progress = null;
     if (code === 0) { state.lastOk = state.lastEnd; log('資料更新完成'); }
     else { state.lastError = `fetch.mjs 結束代碼 ${code}：${errTail.trim().split('\n').pop() ?? ''}`; log(state.lastError); }
   });
