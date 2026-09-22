@@ -133,12 +133,14 @@ async function fetchLive() {
       const j = await res.json();
       for (const r of j.msgArray ?? []) {
         if (!r.d || map[r.c]?.src === 'trade') continue;
-        const trade = num(r.z) ?? num(r.pz);
-        const bid = num(String(r.b ?? '').split('_')[0]), ask = num(String(r.a ?? '').split('_')[0]);
+        // 五檔裡的 0.0000 代表市價單（漲停／跌停鎖住時常見），不是價格，取第一個正數
+        const pos = x => { const v = num(x); return v > 0 ? v : null; };
+        const firstPos = s => String(s ?? '').split('_').map(pos).find(v => v != null) ?? null;
+        const trade = pos(r.z) ?? pos(r.pz), bid = firstPos(r.b), ask = firstPos(r.a);
         const c = trade ?? bid ?? ask;
         if (c == null) continue;
-        map[r.c] = { date: `${r.d.slice(0, 4)}-${r.d.slice(4, 6)}-${r.d.slice(6)}`, time: r.t, src: trade != null ? 'trade' : 'bid',
-          o: num(r.o) ?? c, h: Math.max(num(r.h) ?? c, c), l: Math.min(num(r.l) ?? c, c), c, v: num(r.v) ?? 0 };
+        map[r.c] = { date: `${r.d.slice(0, 4)}-${r.d.slice(4, 6)}-${r.d.slice(6)}`, time: r.t, src: trade != null ? 'trade' : bid != null ? 'bid' : 'ask',
+          o: pos(r.o) ?? c, h: Math.max(pos(r.h) ?? c, c), l: Math.min(pos(r.l) ?? c, c), c, v: num(r.v) ?? 0 };
       }
     } catch (e) {
       console.warn('  ! 即時報價失敗：' + e.message);
@@ -172,7 +174,7 @@ async function main() {
     const q = live[s.code], rows = daily[s.code];
     if (q && q.date > (rows.at(-1)?.date ?? '')) {
       rows.push({ date: q.date, o: q.o, h: q.h, l: q.l, c: q.c, v: Math.round(q.v), amt: null, n: null, live: true, time: q.time, src: q.src });
-      console.log(`  ${s.name} 補上即時 K 棒 ${q.date} ${q.time} ${q.src === 'trade' ? '成交價' : '買價'} ${q.c}`);
+      console.log(`  ${s.name} 補上即時 K 棒 ${q.date} ${q.time} ${{ trade: '成交價', bid: '買價', ask: '賣價' }[q.src]} ${q.c}`);
     }
   }
   step++;

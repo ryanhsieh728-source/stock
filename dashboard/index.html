@@ -1,11 +1,18 @@
 <meta charset="utf-8">
 <title>PCB 族群儀表板</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%234c8dff'/><path d='M6 22l6-7 5 4 9-11' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<script>
+  // 在畫面出現前套用使用者選的背景，避免閃爍
+  (() => { let m = "dark"; try { m = new URLSearchParams(location.search).get("theme") || localStorage.getItem("ecf-theme") || "dark"; } catch (e) {}
+    if (m === "auto") m = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    document.documentElement.dataset.theme = m; })();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap">
 <style>
-  /* 刻意採單一深色主題（交易看盤介面），所有顏色明確上色 */
+  /* 預設暗底；data-theme="light" 為亮底。所有顏色都走變數，圖表顏色也從這裡讀 */
   :root {
     color-scheme: dark;
     --ground: #0a101c;
@@ -20,8 +27,64 @@
     --up: #f0524d;     /* 台股慣例：紅漲 */
     --down: #1fb37a;   /* 綠跌 */
     --warn: #f2b233;
+    --sel: #14223d;          /* 選取中的底色 */
+    --tag-bg: #13233f;
+    --hover-line: #33415e;
+    --topbar-bg: rgba(10,16,28,.92);
+    --btn-hover: #3f7ef0;
+    --focus: #9cc0ff;
+    --toast-bg: #16233d;
+    --shadow: rgba(0,0,0,.4);
+    --row-hover: #131f35;
+    --dot-off: #34425f;
+    --pill-up: rgba(240,82,77,.14);
+    --pill-down: rgba(31,179,122,.14);
+    --pill-flat: rgba(167,179,199,.12);
+    /* 圖表專用 */
+    --bar-muted: #2c3a58;
+    --pointer: #3a4867;
+    --pointer-label: #24324e;
+    --tooltip-bg: rgba(12,19,33,.96);
+    --ma5: #b8870f; --ma10: #a568f0; --ma20: #1fa3d1; --ma60: #c9d2e3;
+    --i-foreign: #4c8dff; --i-trust: #b8800f; --i-dealer: #9a6cf0;
+    --heat: #152036,#1d3563,#2f5fb8,#4c8dff,#9cc0ff;
     --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
     --sans: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --ground: #eef1f6;
+    --panel: #ffffff;
+    --panel-2: #f1f4f9;
+    --line: #d8dfea;
+    --grid: #e9edf4;
+    --ink: #121b2c;
+    --ink-2: #44526a;
+    --muted: #6b788d;
+    --accent: #2f6fe0;
+    --up: #d7263d;
+    --down: #0a8a55;
+    --warn: #b7791f;
+    --sel: #e4edfd;
+    --tag-bg: #e4edfd;
+    --hover-line: #b3c0d4;
+    --topbar-bg: rgba(238,241,246,.92);
+    --btn-hover: #2560c9;
+    --focus: #2f6fe0;
+    --toast-bg: #ffffff;
+    --shadow: rgba(18,27,44,.14);
+    --row-hover: #f3f6fb;
+    --dot-off: #d3dae5;
+    --pill-up: rgba(215,38,61,.1);
+    --pill-down: rgba(10,138,85,.1);
+    --pill-flat: rgba(68,82,106,.08);
+    --bar-muted: #c9d3e1;
+    --pointer: #9aa7bb;
+    --pointer-label: #44526a;
+    --tooltip-bg: rgba(255,255,255,.97);
+    --ma5: #a8790a; --ma10: #8a4fe0; --ma20: #0d87b5; --ma60: #56657d;
+    --i-foreign: #2f6fe0; --i-trust: #b07a0a; --i-dealer: #8a4fe0;
+    --heat: #f1f4f9,#cddcf7,#8fb2f0,#4a85e8,#1f55c0;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -32,21 +95,23 @@
 
   /* ---- 頂部：品牌 + 股票切換 ---- */
   .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 14px; }
-  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand { display: grid; gap: 5px; min-width: 0; }
+  .brand-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .brand b { font: 900 20px/1 var(--sans); letter-spacing: .02em; }
-  .brand span { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
-  .tabs { order: 3; flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
+  .credit { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); text-wrap: balance; }
+  .brand-row span { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+  .tabs { order: 3; flex-basis: 100%; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; }
   .tab {
     appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2);
-    border-radius: 6px; padding: 6px 10px; cursor: pointer; display: grid; gap: 1px; text-align: left;
+    border-radius: 6px; padding: 6px 8px; cursor: pointer; display: grid; gap: 1px; text-align: left;
     font: 500 13px/1.25 var(--sans); min-width: 0; transition: border-color .15s, background .15s;
   }
-  .tab:hover { border-color: #33415e; color: var(--ink); }
+  .tab:hover { border-color: var(--hover-line); color: var(--ink); }
   .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .tab[aria-selected="true"] { background: #14223d; border-color: var(--accent); color: var(--ink); }
+  .tab[aria-selected="true"] { background: var(--sel); border-color: var(--accent); color: var(--ink); }
   .tab .t1 { display: flex; gap: 6px; align-items: baseline; }
   .tab .code { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-  .tab .t2 { font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tab .t2 { font-family: var(--mono); font-size: 11px; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* ---- KPI 列 ---- */
   .quote {
@@ -67,7 +132,7 @@
   .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 12px; min-width: 0; display: flex; flex-direction: column; }
   .panel > header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
-  .panel .tag { font: 700 11px/1 var(--mono); color: var(--accent); background: #13233f; padding: 3px 5px; border-radius: 3px; }
+  .panel .tag { font: 700 11px/1 var(--mono); color: var(--accent); background: var(--tag-bg); padding: 3px 5px; border-radius: 3px; }
   .panel h2 { font: 700 14px/1.3 var(--sans); margin: 0; }
   .panel .sub { color: var(--muted); font-size: 11.5px; }
   .panel .foot { color: var(--muted); font-size: 11.5px; margin-top: 6px; }
@@ -82,7 +147,7 @@
   .sig dt { color: var(--muted); font-size: 12.5px; }
   .sig dd { margin: 0; font-weight: 500; }
   .pill { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 99px; margin-right: 6px; }
-  .pill.up { background: rgba(240,82,77,.14); } .pill.down { background: rgba(31,179,122,.14); } .pill.flat { background: rgba(167,179,199,.12); }
+  .pill.up { background: var(--pill-up); } .pill.down { background: var(--pill-down); } .pill.flat { background: var(--pill-flat); }
   .score { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
   .score .big { font: 700 34px/1 var(--mono); }
   .score .bar { flex: 1; height: 8px; background: var(--panel-2); border-radius: 99px; overflow: hidden; }
@@ -95,7 +160,7 @@
   th { color: var(--muted); font-weight: 500; font-size: 11.5px; }
   th:first-child, td:first-child { text-align: left; }
   tr.sum td { font-weight: 700; border-top: 1px solid var(--line); background: var(--panel-2); }
-  tr.cur td { background: #14223d; font-weight: 700; }
+  tr.cur td { background: var(--sel); font-weight: 700; }
 
   /* 風險量表 */
   .meters { display: grid; gap: 11px; margin-top: 4px; }
@@ -106,7 +171,7 @@
 
   /* ---- 置頂列：更新按鈕 ---- */
   .topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; padding-block: 10px; margin-top: -10px;
-    background: rgba(10,16,28,.92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid transparent; }
+    background: var(--topbar-bg); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-bottom: 1px solid transparent; }
   .topbar.stuck { border-bottom-color: var(--line); }
   .actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
   .stamp { color: var(--muted); font-size: 12px; text-align: right; line-height: 1.35; }
@@ -115,16 +180,16 @@
   @keyframes pulse { 50% { opacity: .3; } }
   .btn { appearance: none; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; cursor: pointer;
     font: 700 13px/1 var(--sans); padding: 9px 14px; display: inline-flex; align-items: center; gap: 7px; position: relative; overflow: hidden; min-width: 118px; justify-content: center; }
-  .btn:hover { background: #3f7ef0; }
-  .btn:focus-visible { outline: 2px solid #9cc0ff; outline-offset: 2px; }
-  .btn[disabled] { cursor: progress; background: #13233f; color: var(--ink); }
+  .btn:hover { background: var(--btn-hover); }
+  .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .btn[disabled] { cursor: progress; background: var(--tag-bg); color: var(--ink); }
   .btn .ico { display: inline-block; font-size: 15px; line-height: 1; }
   .btn[disabled] .ico { animation: spin 1s linear infinite; }
   .btn .prog { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); width: 0; transition: width .3s; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .toast { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 30; max-width: min(420px, calc(100vw - 32px));
-    background: #16233d; border: 1px solid var(--line); border-left: 3px solid var(--accent); color: var(--ink); padding: 10px 14px; border-radius: 6px;
-    font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
+    background: var(--toast-bg); border: 1px solid var(--line); border-left: 3px solid var(--accent); color: var(--ink); padding: 10px 14px; border-radius: 6px;
+    font-size: 13px; box-shadow: 0 8px 24px var(--shadow); }
   .toast.err { border-left-color: var(--up); }
 
   /* 面板內切換 */
@@ -132,7 +197,7 @@
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
   .seg button { appearance: none; border: 0; background: transparent; color: var(--muted); font: 500 12px/1 var(--sans); padding: 6px 10px; cursor: pointer; }
   .seg button + button { border-left: 1px solid var(--line); }
-  .seg button[aria-selected="true"] { background: #14223d; color: var(--ink); font-weight: 700; }
+  .seg button[aria-selected="true"], .seg button[aria-checked="true"] { background: var(--sel); color: var(--ink); font-weight: 700; }
   .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
   /* 朱家泓 */
@@ -154,12 +219,12 @@
   .plan span { color: var(--ink-2); }
   .dots { letter-spacing: 2px; font-size: 11px; }
   .dots.long { color: var(--up); } .dots.short { color: var(--down); }
-  .dots i { font-style: normal; color: #34425f; }
+  .dots i { font-style: normal; color: var(--dot-off); }
 
   /* 掃描表 */
   .s12 { grid-column: span 12; }
   .scan tbody tr { cursor: pointer; }
-  .scan tbody tr:hover td { background: #131f35; }
+  .scan tbody tr:hover td { background: var(--row-hover); }
   .scan td:first-child button { appearance: none; background: none; border: 0; color: var(--ink); font: 700 13px var(--sans); cursor: pointer; padding: 0; }
   .scan td:first-child button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .scan td:first-child .code { font: 400 11px var(--mono); color: var(--muted); margin-left: 6px; }
@@ -169,6 +234,7 @@
   .empty { color: var(--muted); padding: 30px 0; text-align: center; }
 
   @media (max-width: 1280px) {
+    .tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
     .quote { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .quote .id { grid-column: 1 / -1; }
   }
@@ -190,9 +256,17 @@
 </style>
 
 <div class="topbar">
-  <div class="brand"><b>PCB 族群儀表板</b><span>ECF · 載板 / 銅箔 / 記憶體 / 晶圓 / 被動元件</span></div>
+  <div class="brand">
+    <div class="brand-row"><b>PCB 族群儀表板</b><span>ECF · 載板 / 銅箔 / 記憶體 / 晶圓 / 被動元件</span></div>
+    <p class="credit">本戰情室由謝名家教授利用AI實作課程設計並參考股市名人-朱家泓技術分析指標(建置投資戰情室)</p>
+  </div>
   <nav class="tabs" id="tabs" role="tablist" aria-label="選擇股票（可用左右方向鍵切換）"></nav>
   <div class="actions">
+    <div class="seg" id="theme" role="radiogroup" aria-label="背景">
+      <button type="button" role="radio" id="theme-dark" data-theme="dark" aria-checked="true">暗底</button>
+      <button type="button" role="radio" id="theme-light" data-theme="light" aria-checked="false">亮底</button>
+      <button type="button" role="radio" id="theme-auto" data-theme="auto" aria-checked="false" title="跟隨作業系統的淺色／深色設定">自動</button>
+    </div>
     <div class="stamp" id="stamp"></div>
     <button class="btn" id="refresh" type="button" title="立即從證交所、櫃買中心抓取最新資料（盤中會帶入即時報價）">
       <span class="ico" aria-hidden="true">↻</span><span class="lbl">更新資料</span><span class="prog"></span>
@@ -207,7 +281,7 @@
 <main class="grid">
   <section class="panel s8 tall"><header><span class="tag">01</span><h2>主 K 線圖</h2><span class="sub">近 60 日 · MA5 / 10 / 20 / 60 · 虛線為 20 日壓力、支撐 · <span style="color:var(--warn)">▼頭 ▲底</span> 為朱家泓轉折點</span></header><div class="chart" id="c-k"></div></section>
   <section class="panel s4"><header><span class="tag">02</span><h2>技術指標</h2>
-      <div class="seg" role="tablist" aria-label="指標檢視">
+      <div class="seg" id="view-seg" role="tablist" aria-label="指標檢視">
         <button type="button" role="tab" id="seg-chu" data-view="chu" aria-selected="true">朱家泓指標</button>
         <button type="button" role="tab" id="seg-tech" data-view="tech" aria-selected="false">一般指標</button>
       </div></header>
@@ -250,12 +324,20 @@
 <script>
 (() => {
   let D = window.STOCK_DATA;
-  const C = {
-    ground: '#0a101c', panel: '#101828', panel2: '#152036', line: '#1f2a40', grid: '#1a2438',
-    ink: '#e3e9f3', ink2: '#a7b3c7', muted: '#6f7d94', accent: '#4c8dff', up: '#f0524d', down: '#1fb37a', warn: '#f2b233',
-    ma: ['#b8870f', '#a568f0', '#1fa3d1', '#c9d2e3'],        // MA5/10/20/60（MA60 以虛線區分）
-    inst: { foreign: '#4c8dff', trust: '#b8800f', dealer: '#9a6cf0' },
-  };
+  // 圖表顏色從 CSS 變數讀取，切換亮底／暗底時重新讀
+  function readTheme() {
+    const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue('--' + n).trim();
+    return {
+      light: document.documentElement.dataset.theme === 'light',
+      ground: v('ground'), panel: v('panel'), panel2: v('panel-2'), line: v('line'), grid: v('grid'),
+      ink: v('ink'), ink2: v('ink-2'), muted: v('muted'), accent: v('accent'), up: v('up'), down: v('down'), warn: v('warn'),
+      barMuted: v('bar-muted'), pointer: v('pointer'), pointerLabel: v('pointer-label'), tooltipBg: v('tooltip-bg'),
+      ma: [v('ma5'), v('ma10'), v('ma20'), v('ma60')],        // MA5/10/20/60（MA60 以虛線區分）
+      inst: { foreign: v('i-foreign'), trust: v('i-trust'), dealer: v('i-dealer') },
+      heat: v('heat').split(',').map(x => x.trim()),
+    };
+  }
+  let C = readTheme();
   const WIN = 60;
   const mono = 'JetBrains Mono, Consolas, monospace';
 
@@ -414,7 +496,8 @@
   const fmt = (x, d = 2) => x == null || !Number.isFinite(x) ? '—' : x.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
   const sgn = (x, d = 2) => (x > 0 ? '+' : '') + fmt(x, d);
   const cls = x => x > 0 ? 'up' : x < 0 ? 'down' : 'flat';
-  const priceDigits = p => p >= 100 ? 1 : 2;
+  // 依台股升降單位決定小數位：500 元以上跳動 1 元、50–500 元跳動 0.1／0.5 元、50 元以下跳動 0.05 元以下
+  const priceDigits = p => p >= 500 ? 0 : p >= 50 ? 1 : 2;
   const md = iso => iso.slice(5).replace('-', '/');
 
   // ---------- ECharts 共用 ----------
@@ -424,8 +507,8 @@
     return charts[id];
   }
   const tooltip = (extra = {}) => ({
-    trigger: 'axis', backgroundColor: 'rgba(12,19,33,.96)', borderColor: C.line, textStyle: { color: C.ink, fontSize: 12, fontFamily: mono },
-    axisPointer: { type: 'cross', lineStyle: { color: '#3a4867' }, crossStyle: { color: '#3a4867' }, label: { backgroundColor: '#24324e', fontFamily: mono } }, ...extra,
+    trigger: 'axis', backgroundColor: C.tooltipBg, borderColor: C.line, textStyle: { color: C.ink, fontSize: 12, fontFamily: mono },
+    axisPointer: { type: 'cross', lineStyle: { color: C.pointer }, crossStyle: { color: C.pointer }, label: { backgroundColor: C.pointerLabel, color: C.light ? '#fff' : C.ink, fontFamily: mono } }, ...extra,
   });
   const xCat = (data, extra = {}) => ({ type: 'category', data, boundaryGap: true, axisLine: { lineStyle: { color: C.line } }, axisTick: { show: false },
     axisLabel: { color: C.muted, fontSize: 10.5, fontFamily: mono }, ...extra });
@@ -459,7 +542,7 @@
     document.getElementById('meta').innerHTML =
       `<span>資料日 <b>${L.date}</b></span><span>日 K <b>${n}</b> 日（顯示近 ${WIN} 日）</span><span>法人 <b>${a.inst.length}</b> 日</span>` +
       `<span>來源 <b>${a.s.market === 'TPEx' ? '櫃買中心' : '證交所'}</b></span>` +
-      (L.live ? `<span><span class="live-dot"></span><b>盤中即時 ${L.time?.slice(0, 5) ?? ''}</b>${L.src === 'bid' ? '・價格為最佳買價' : ''}（今日 K 棒與成交量尚未收盤，量能判讀會偏低）</span>` : '<span>收盤後資料</span>');
+      (L.live ? `<span><span class="live-dot"></span><b>盤中即時 ${L.time?.slice(0, 5) ?? ''}</b>${L.src === 'bid' ? '・價格為最佳買價' : L.src === 'ask' ? '・價格為最佳賣價' : ''}（今日 K 棒與成交量尚未收盤，量能判讀會偏低）</span>` : '<span>收盤後資料</span>');
 
     // 01 K 線
     const lvl = (y, name, color) => ({ yAxis: y, name, lineStyle: { color, type: 'dashed', width: 1 }, label: { formatter: `${name} ${fmt(y, pd)}`, color, fontSize: 10.5, fontFamily: mono, position: 'insideEndTop' } });
@@ -491,7 +574,7 @@
       xAxis: xCat(dates), yAxis: yVal({ scale: false, min: 0, max: 100, interval: 20, position: 'right' }),
       series: [
         { type: 'line', name: 'K', data: tail(a.K.k).map(r2), showSymbol: false, lineStyle: { width: 2, color: C.ma[0] }, itemStyle: { color: C.ma[0] },
-          markLine: { symbol: 'none', silent: true, lineStyle: { color: '#3a4867', type: 'dashed' }, label: { show: false }, data: [{ yAxis: 80 }, { yAxis: 20 }] } },
+          markLine: { symbol: 'none', silent: true, lineStyle: { color: C.pointer, type: 'dashed' }, label: { show: false }, data: [{ yAxis: 80 }, { yAxis: 20 }] } },
         { type: 'line', name: 'D', data: tail(a.K.d).map(r2), showSymbol: false, lineStyle: { width: 2, color: C.ma[2] }, itemStyle: { color: C.ma[2] } },
       ],
     }, true);
@@ -514,7 +597,7 @@
       visualMap: { show: false, dimension: 1, pieces: [{ gt: 70, color: C.up }, { lt: 30, color: C.down }, { gte: 30, lte: 70, color: C.accent }] },
       series: [{ type: 'line', name: 'RSI14', data: tail(a.R).map(r2), showSymbol: false, lineStyle: { width: 2 },
         markArea: { silent: true, itemStyle: { color: 'rgba(76,141,255,.05)' }, data: [[{ yAxis: 30 }, { yAxis: 70 }]] },
-        markLine: { symbol: 'none', silent: true, lineStyle: { color: '#3a4867', type: 'dashed' }, label: { show: false }, data: [{ yAxis: 70 }, { yAxis: 30 }] } }],
+        markLine: { symbol: 'none', silent: true, lineStyle: { color: C.pointer, type: 'dashed' }, label: { show: false }, data: [{ yAxis: 70 }, { yAxis: 30 }] } }],
     }, true);
 
     // 06 法人每日
@@ -603,7 +686,7 @@
     // 09 雷達
     const sc = a.scores;
     chart('c-radar').setOption({
-      animation: false, tooltip: { trigger: 'item', backgroundColor: 'rgba(12,19,33,.96)', borderColor: C.line, textStyle: { color: C.ink, fontSize: 12 } },
+      animation: false, tooltip: { trigger: 'item', backgroundColor: C.tooltipBg, borderColor: C.line, textStyle: { color: C.ink, fontSize: 12 } },
       radar: { radius: '64%', center: ['50%', '54%'], splitNumber: 4, indicator: ['趨勢', '動能', '籌碼', '量能', '穩定度'].map(nm => ({ name: nm, max: 100 })),
         axisName: { color: C.ink2, fontSize: 11.5 }, splitLine: { lineStyle: { color: C.grid } }, splitArea: { areaStyle: { color: ['transparent'] } }, axisLine: { lineStyle: { color: C.grid } } },
       series: [{ type: 'radar', symbolSize: 5, data: [{ value: [sc.trend, sc.momentum, sc.chip, sc.volScore, sc.stability].map(Math.round), name: '評分',
@@ -616,7 +699,7 @@
     chart('c-vp').setOption({
       animation: false, tooltip: tooltip({ axisPointer: { type: 'shadow' }, valueFormatter: v => fmt(v, 0) + ' 張' }), grid: { left: 20, right: 12, top: 8, bottom: 20, containLabel: true },
       xAxis: { type: 'value', show: false }, yAxis: xCat(vpLabels, { axisLabel: { color: C.muted, fontSize: 10, fontFamily: mono, interval: 3 } }),
-      series: [{ type: 'bar', data: a.vp.map((v, b) => ({ value: Math.round(v), itemStyle: { color: b === curBin ? C.warn : b === a.pocBin ? C.accent : '#2c3a58', borderRadius: [0, 3, 3, 0] } })), barCategoryGap: '18%' }],
+      series: [{ type: 'bar', data: a.vp.map((v, b) => ({ value: Math.round(v), itemStyle: { color: b === curBin ? C.warn : b === a.pocBin ? C.accent : C.barMuted, borderRadius: [0, 3, 3, 0] } })), barCategoryGap: '18%' }],
     }, true);
 
     // 11 10 日區間
@@ -677,7 +760,7 @@
       grid: { left: 20, right: 50, top: 26, bottom: 22 }, xAxis: xCat(dates),
       yAxis: yVal({ scale: false, position: 'right', axisLabel: { color: C.muted, fontSize: 10.5, fontFamily: mono, formatter: v => v >= 1000 ? (v / 1000) + 'k' : v } }),
       series: [
-        { type: 'bar', name: '成交量', data: dd.map((r, k) => ({ value: r.v, itemStyle: { color: r.v > vmaT[k] ? C.accent : '#2c3a58', borderRadius: [3, 3, 0, 0] } })), barMaxWidth: 8 },
+        { type: 'bar', name: '成交量', data: dd.map((r, k) => ({ value: r.v, itemStyle: { color: r.v > vmaT[k] ? C.accent : C.barMuted, borderRadius: [3, 3, 0, 0] } })), barMaxWidth: 8 },
         { type: 'line', name: '20 日均量', data: vmaT.map(x => x == null ? null : Math.round(x)), showSymbol: false, lineStyle: { width: 2, color: C.warn }, itemStyle: { color: C.warn } },
       ],
     }, true);
@@ -717,18 +800,19 @@
       let sxy = 0, sxx = 0, syy = 0; ps.forEach((x, k) => { sxy += (x - mp) * (qs[k] - mq); sxx += (x - mp) ** 2; syy += (qs[k] - mq) ** 2; });
       return sxy / Math.sqrt(sxx * syy); };
     const names = A.map(lbl), cells = [];
-    A.forEach((_, r) => A.forEach((_, c) => cells.push([c, r, +corr(retMap[r], retMap[c]).toFixed(2)])));
+    const onCell = v => (C.light ? v >= .6 : v >= .85) ? (C.light ? '#ffffff' : '#0a101c') : C.ink;   // 深色格用淺字、淺色格用深字
+    A.forEach((_, r) => A.forEach((_, c) => { const v = +corr(retMap[r], retMap[c]).toFixed(2); cells.push({ value: [c, r, v], label: { color: onCell(v) } }); }));
     const ci = A.findIndex(x => x.s.code === cur);
     chart('c-corr').setOption({
-      animation: false, tooltip: { backgroundColor: 'rgba(12,19,33,.96)', borderColor: C.line, textStyle: { color: C.ink, fontSize: 12 },
+      animation: false, tooltip: { backgroundColor: C.tooltipBg, borderColor: C.line, textStyle: { color: C.ink, fontSize: 12 },
         formatter: p => `${names[p.value[1]]} × ${names[p.value[0]]}<br><b style="font-family:${mono}">${p.value[2].toFixed(2)}</b>` },
       grid: { left: 20, right: 8, top: 8, bottom: 8, containLabel: true },
       xAxis: { type: 'category', data: names, axisLabel: { color: C.muted, fontSize: 10, rotate: 45, interval: 0 }, axisLine: { show: false }, axisTick: { show: false } },
       yAxis: { type: 'category', data: names, inverse: true, axisLabel: { color: C.muted, fontSize: 10.5, interval: 0,
         formatter: (v, k) => k === ci ? `{cur|${v}}` : v, rich: { cur: { color: C.ink, fontWeight: 700, fontSize: 10.5 } } }, axisLine: { show: false }, axisTick: { show: false } },
-      visualMap: { show: false, min: 0, max: 1, inRange: { color: ['#152036', '#1d3563', '#2f5fb8', '#4c8dff', '#9cc0ff'] } },
+      visualMap: { show: false, min: 0, max: 1, inRange: { color: C.heat } },
       series: [{ type: 'heatmap', data: cells, itemStyle: { borderColor: C.panel, borderWidth: 2 },
-        label: { show: true, fontSize: 9.5, fontFamily: mono, formatter: p => p.value[2].toFixed(1), color: C.ink } }],
+        label: { show: true, fontSize: 9.5, fontFamily: mono, formatter: p => p.value[2].toFixed(1) } }],
     }, true);
 
     const flow = [...A].map(x => ({ x, v: x.vol20 ? x.inst20 / x.vol20 * 100 : 0 })).sort((p, q) => q.v - p.v);
@@ -757,18 +841,41 @@
       <th>股票</th><th>收盤</th><th>漲跌幅</th><th class="l">趨勢</th><th class="l">波段位置</th><th class="l">均線</th>
       <th>MA5</th><th>前低（底）</th><th>前高（頭）</th><th>做多條件</th><th>做空條件</th><th class="l">策略判讀</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
-  document.getElementById('p-scan').addEventListener('click', e => { const tr = e.target.closest('tr[data-code]'); if (tr) { select(tr.dataset.code); window.scrollTo({ top: 0, behavior: 'smooth' }); } });
+  document.getElementById('p-scan').addEventListener('click', e => {
+    const tr = e.target.closest('tr[data-code]'); if (!tr) return;
+    select(tr.dataset.code);
+    document.getElementById('tab-' + tr.dataset.code)?.focus({ preventScroll: true });   // 表格會重畫，把焦點交給上方的股票按鈕
+    window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
 
   // ---------- 02 檢視切換 ----------
-  const segBtns = [...document.querySelectorAll('.seg button')];
+  const segBtns = [...document.querySelectorAll('#view-seg button')];   // 只取 02 面板的切換，不含背景按鈕
   function setView(v) {
     segBtns.forEach(b => b.setAttribute('aria-selected', b.dataset.view === v));
     document.getElementById('p-chu').hidden = v !== 'chu';
     document.getElementById('p-sig').hidden = v !== 'tech';
-    try { localStorage.setItem('ecf-view', v); } catch (e) {}
   }
   segBtns.forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
-  try { setView(localStorage.getItem('ecf-view') || 'chu'); } catch (e) { setView('chu'); }
+  setView('chu');   // 技術指標預設顯示朱家泓指標
+  try { localStorage.removeItem('ecf-view'); } catch (e) {}   // 清掉舊版存下的檢視設定
+
+  // ---------- 亮底 / 暗底 ----------
+  const themeBtns = [...document.querySelectorAll('#theme button')];
+  const sysLight = matchMedia('(prefers-color-scheme: light)');
+  let themeMode = 'dark';
+  try { themeMode = new URLSearchParams(location.search).get('theme') || localStorage.getItem('ecf-theme') || 'dark'; } catch (e) {}
+  function applyTheme(mode, save) {
+    themeMode = mode;
+    const t = mode === 'auto' ? (sysLight.matches ? 'light' : 'dark') : mode;
+    document.documentElement.dataset.theme = t;
+    themeBtns.forEach(b => b.setAttribute('aria-checked', b.dataset.theme === mode));
+    if (save) { try { localStorage.setItem('ecf-theme', mode); } catch (e) {} }
+    C = readTheme();
+    if (A.length) select(current);      // 以新配色重畫所有圖表
+  }
+  themeBtns.forEach(b => b.addEventListener('click', () => applyTheme(b.dataset.theme, true)));
+  sysLight.addEventListener('change', () => { if (themeMode === 'auto') applyTheme('auto'); });
+  themeBtns.forEach(b => b.setAttribute('aria-checked', b.dataset.theme === themeMode));
 
   // ---------- 股票切換 ----------
   const tabs = document.getElementById('tabs');
@@ -854,10 +961,11 @@
       for (;;) {
         const s = await status();
         if (s.running) { setBusy(s.progress || { done: 0, total: 1 }); await new Promise(r => setTimeout(r, 1000)); continue; }
-        setBusy(null);
-        if (s.lastError) { toast('更新失敗：' + s.lastError, true); break; }
+        if (s.lastError) { setBusy(null); toast('更新失敗：' + s.lastError, true); break; }
         seenUpdate = s.dataUpdatedAt;
+        lbl.textContent = '載入中'; bar.style.width = '100%';
         await loadData(); boot();
+        setBusy(null);                      // 新資料畫好才恢復按鈕
         const liveN = A.filter(a => last(a.d).live).length;
         toast(`已更新：資料日 ${last(A[0].d).date}${liveN ? `（${liveN} 檔含盤中即時價）` : ''}`);
         break;

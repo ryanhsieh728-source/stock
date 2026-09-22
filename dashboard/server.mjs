@@ -65,6 +65,22 @@ function sendFile(res, file) {
 }
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': TYPES['.json'] }); res.end(JSON.stringify(obj)); };
 
+// data.js 以「寫暫存檔再改名」更新；在 Windows 的 Docker 掛載資料夾上改名不是瞬間完成，
+// 中間可能短暫讀不到檔案。所以保留最後一份讀成功的內容，讀不到時就回傳它，伺服器不會因此出錯
+let lastData = null;   // { buf, mtime }
+function readData() {
+  try {
+    const mtime = fs.statSync(DATA_FILE).mtime;
+    if (!lastData || +mtime !== +lastData.mtime) lastData = { buf: fs.readFileSync(DATA_FILE), mtime };
+  } catch (e) {
+    if (e.code !== 'ENOENT') log('讀取 data.js 失敗：' + e.message);
+  }
+  return lastData;
+}
+
+// 任何未預期的錯誤只記錄、不讓整個服務停掉
+process.on('uncaughtException', e => log('未預期的錯誤：' + (e.stack || e.message)));
+
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   // 允許從本機檔案或其他網址開啟的儀表板呼叫更新 API（只會觸發抓取公開資料）
@@ -76,13 +92,14 @@ http.createServer((req, res) => {
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) return sendFile(res, path.join(DIR, 'index.html'));
   if (req.method === 'GET' && url.pathname === '/vendor/echarts.min.js') return sendFile(res, path.join(DIR, 'vendor', 'echarts.min.js'));
   if (req.method === 'GET' && url.pathname === '/data.js') {
-    if (!fs.existsSync(DATA_FILE)) { res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-cache' }); return res.end('window.STOCK_DATA = null;'); }
-    return sendFile(res, DATA_FILE);
+    const d = readData();
+    res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-cache' });
+    return res.end(d ? d.buf : 'window.STOCK_DATA = null;');
   }
   if (req.method === 'GET' && url.pathname === '/api/status') {
-    const stat = fs.existsSync(DATA_FILE) ? fs.statSync(DATA_FILE) : null;
-    return json(res, 200, { ...state, dataUpdatedAt: stat?.mtime ?? null, refreshAt: REFRESH_AT, tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+    return json(res, 200, { ...state, dataUpdatedAt: readData()?.mtime ?? null, refreshAt: REFRESH_AT, tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
   }
+  if (url.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
   if (req.method === 'POST' && url.pathname === '/api/refresh') {
     const started = refresh('手動');
     return json(res, started ? 202 : 409, { started, running: true });
@@ -91,5 +108,5 @@ http.createServer((req, res) => {
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('not found');
 }).listen(PORT, () => {
   log(`儀表板：http://localhost:${PORT}（資料目錄 ${DATA_DIR}，每個交易日 ${REFRESH_AT} 自動更新）`);
-  if (!fs.existsSync(DATA_FILE)) refresh('首次啟動，尚無資料');
+  if (!readData()) refresh('首次啟動，尚無資料');
 });
