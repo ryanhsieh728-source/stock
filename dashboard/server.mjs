@@ -67,6 +67,12 @@ const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': TYPES['
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
+  // 允許從本機檔案或其他網址開啟的儀表板呼叫更新 API（只會觸發抓取公開資料）
+  if (url.pathname.startsWith('/api/')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+  }
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) return sendFile(res, path.join(DIR, 'index.html'));
   if (req.method === 'GET' && url.pathname === '/vendor/echarts.min.js') return sendFile(res, path.join(DIR, 'vendor', 'echarts.min.js'));
   if (req.method === 'GET' && url.pathname === '/data.js') {

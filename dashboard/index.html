@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>PCB 九檔儀表板</title>
+<title>PCB 族群儀表板</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,6 +24,7 @@
     --sans: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { background: var(--ground); color: var(--ink); }
   body { margin: 0; font: 14px/1.5 var(--sans); padding: 16px clamp(16px, 2vw, 28px) 40px; }
   .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
@@ -34,7 +35,7 @@
   .brand { display: flex; align-items: baseline; gap: 10px; }
   .brand b { font: 900 20px/1 var(--sans); letter-spacing: .02em; }
   .brand span { color: var(--muted); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
-  .tabs { order: 3; flex-basis: 100%; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; }
+  .tabs { order: 3; flex-basis: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
   .tab {
     appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2);
     border-radius: 6px; padding: 6px 10px; cursor: pointer; display: grid; gap: 1px; text-align: left;
@@ -73,6 +74,7 @@
   .chart { width: 100%; height: 220px; flex: 1 0 auto; }
   .s3 { grid-column: span 3; } .s4 { grid-column: span 4; } .s5 { grid-column: span 5; } .s6 { grid-column: span 6; } .s7 { grid-column: span 7; } .s8 { grid-column: span 8; }
   .tall .chart { height: 400px; }
+  #c-ret, #c-corr, #c-flow { height: 320px; }
 
   /* 訊號摘要 */
   .sig { display: grid; gap: 0; margin: 0; }
@@ -171,7 +173,7 @@
     .quote .id { grid-column: 1 / -1; }
   }
   @media (max-width: 1100px) {
-    .tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .tabs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
     .s3, .s4, .s5 { grid-column: span 6; }
     .s6, .s7, .s8 { grid-column: span 12; }
   }
@@ -188,7 +190,7 @@
 </style>
 
 <div class="topbar">
-  <div class="brand"><b>PCB 九檔儀表板</b><span>ECF · 載板 / 銅箔 / 記憶體</span></div>
+  <div class="brand"><b>PCB 族群儀表板</b><span>ECF · 載板 / 銅箔 / 記憶體 / 晶圓 / 被動元件</span></div>
   <nav class="tabs" id="tabs" role="tablist" aria-label="選擇股票（可用左右方向鍵切換）"></nav>
   <div class="actions">
     <div class="stamp" id="stamp"></div>
@@ -230,11 +232,11 @@
   <section class="panel s4"><header><span class="tag">14</span><h2>量能</h2><span class="sub">藍色為高於 20 日均量</span></header><div class="chart" id="c-vol"></div></section>
   <section class="panel s4"><header><span class="tag">15</span><h2>關鍵價位</h2><span class="sub">由高到低</span></header><div class="tbl-wrap" id="p-levels"></div></section>
 
-  <section class="panel s4"><header><span class="tag">16</span><h2>九檔近 20 日報酬</h2><span class="sub">目前個股以白框標示</span></header><div class="chart" id="c-ret"></div></section>
-  <section class="panel s4"><header><span class="tag">17</span><h2>九檔報酬相關性</h2><span class="sub">近 60 日日報酬</span></header><div class="chart" id="c-corr"></div></section>
-  <section class="panel s4"><header><span class="tag">18</span><h2>九檔法人力道</h2><span class="sub">近 20 日法人買賣超 ÷ 成交量</span></header><div class="chart" id="c-flow"></div></section>
+  <section class="panel s4"><header><span class="tag">16</span><h2>族群近 20 日報酬</h2><span class="sub">目前個股以白框標示</span></header><div class="chart" id="c-ret"></div></section>
+  <section class="panel s4"><header><span class="tag">17</span><h2>族群報酬相關性</h2><span class="sub">近 60 日日報酬</span></header><div class="chart" id="c-corr"></div></section>
+  <section class="panel s4"><header><span class="tag">18</span><h2>族群法人力道</h2><span class="sub">近 20 日法人買賣超 ÷ 成交量</span></header><div class="chart" id="c-flow"></div></section>
 
-  <section class="panel s12"><header><span class="tag">19</span><h2>朱家泓策略・九檔掃描</h2><span class="sub">趨勢、均線、K 線、量能四條件；點選列可切換個股</span></header><div class="tbl-wrap" id="p-scan"></div></section>
+  <section class="panel s12"><header><span class="tag">19</span><h2>朱家泓策略・族群掃描</h2><span class="sub">趨勢、均線、K 線、量能四條件；點選列可切換個股</span></header><div class="tbl-wrap" id="p-scan"></div></section>
 </main>
 
 <p class="note" id="note"></p>
@@ -457,7 +459,7 @@
     document.getElementById('meta').innerHTML =
       `<span>資料日 <b>${L.date}</b></span><span>日 K <b>${n}</b> 日（顯示近 ${WIN} 日）</span><span>法人 <b>${a.inst.length}</b> 日</span>` +
       `<span>來源 <b>${a.s.market === 'TPEx' ? '櫃買中心' : '證交所'}</b></span>` +
-      (L.live ? `<span><span class="live-dot"></span><b>盤中即時 ${L.time?.slice(0, 5) ?? ''}</b>（今日 K 棒與成交量尚未收盤，量能判讀會偏低）</span>` : '<span>收盤後資料</span>');
+      (L.live ? `<span><span class="live-dot"></span><b>盤中即時 ${L.time?.slice(0, 5) ?? ''}</b>${L.src === 'bid' ? '・價格為最佳買價' : ''}（今日 K 棒與成交量尚未收盤，量能判讀會偏低）</span>` : '<span>收盤後資料</span>');
 
     // 01 K 線
     const lvl = (y, name, color) => ({ yAxis: y, name, lineStyle: { color, type: 'dashed', width: 1 }, label: { formatter: `${name} ${fmt(y, pd)}`, color, fontSize: 10.5, fontFamily: mono, position: 'insideEndTop' } });
@@ -693,7 +695,7 @@
     renderCross(a.s.code);
   }
 
-  // ---------- 繪製：九檔比較 ----------
+  // ---------- 繪製：族群比較 ----------
   function renderCross(cur) {
     const sorted = [...A].sort((x, y) => y.ret20 - x.ret20);
     const lbl = x => `${x.s.name}`;
@@ -740,7 +742,7 @@
     }, true);
   }
 
-  // ---------- 19 朱家泓九檔掃描 ----------
+  // ---------- 19 朱家泓族群掃描 ----------
   function renderScan(cur) {
     const dots = (n, kind) => `<span class="dots ${kind}">${'●'.repeat(n)}<i>${'●'.repeat(4 - n)}</i></span>`;
     const rows = A.map(a => { const z = a.chu, pd = priceDigits(last(a.c));
@@ -814,7 +816,7 @@
   function loadData() {
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'data.js?t=' + Date.now();
+      s.src = (apiBase ?? '') + 'data.js?t=' + Date.now();
       s.onload = () => { D = window.STOCK_DATA; s.remove(); resolve(); };
       s.onerror = () => { s.remove(); reject(new Error('讀取 data.js 失敗')); };
       document.head.appendChild(s);
@@ -823,7 +825,16 @@
 
   // ---------- 更新按鈕 ----------
   const btn = document.getElementById('refresh'), lbl = btn.querySelector('.lbl'), bar = btn.querySelector('.prog');
-  if (location.protocol === 'file:') btn.hidden = true;   // 直接開檔案沒有更新服務
+  // 更新服務位置：先找同一個網址；直接開檔案或從其他網址開啟時，改連本機的 Docker 服務
+  const SERVICE = 'http://localhost:8090/';
+  let apiBase = null;
+  async function findService() {
+    const bases = [...(location.protocol.startsWith('http') ? [''] : []), SERVICE];
+    for (const b of bases) {
+      try { const r = await fetch(b + 'api/status', { cache: 'no-store' }); if (r.ok && (await r.json()).refreshAt) { apiBase = b; return true; } } catch (e) {}
+    }
+    return false;
+  }
   let toastTimer, polling = false, seenUpdate = null;
   function toast(msg, err) {
     document.querySelector('.toast')?.remove();
@@ -836,7 +847,7 @@
     const pct = p.total ? Math.round(p.done / p.total * 100) : 0;
     lbl.textContent = `更新中 ${pct}%`; bar.style.width = pct + '%'; btn.title = p.label || '';
   }
-  async function status() { const r = await fetch('api/status', { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
+  async function status() { const r = await fetch(apiBase + 'api/status', { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
   async function poll() {
     if (polling) return; polling = true;
     try {
@@ -857,15 +868,17 @@
   btn.addEventListener('click', async () => {
     setBusy({ done: 0, total: 1, label: '啟動中' });
     try {
-      const r = await fetch('api/refresh', { method: 'POST' });
-      if (r.status === 404) throw new Error('此頁面不是從 Docker 服務開啟，無法更新');
+      if (apiBase == null && !(await findService())) throw new Error('找不到更新服務：請確認 Docker 容器 pcb-dashboard 正在執行（' + SERVICE + '）');
+      const r = await fetch(apiBase + 'api/refresh', { method: 'POST' });
+      if (r.status === 404) throw new Error('更新服務版本過舊，請重建容器：docker compose up -d --build');
       if (!r.ok && r.status !== 409) throw new Error('HTTP ' + r.status);
       poll();
     } catch (e) { setBusy(null); toast(e.message, true); }
   });
   // 開頁時若排程正在跑就接著顯示進度；之後每分鐘檢查是否有排程更新，有就自動載入
   (async () => {
-    try { const s = await status(); seenUpdate = s.dataUpdatedAt; if (s.running) poll(); } catch (e) { btn.hidden = true; return; }
+    if (!(await findService())) { btn.title = '找不到更新服務（' + SERVICE + '），按下會再試一次'; return; }
+    try { const s = await status(); seenUpdate = s.dataUpdatedAt; if (s.running) poll(); } catch (e) { return; }
     setInterval(async () => {
       if (polling) return;
       try { const s = await status(); if (s.running) poll(); else if (s.dataUpdatedAt && s.dataUpdatedAt !== seenUpdate) { seenUpdate = s.dataUpdatedAt; await loadData(); boot(); toast('已載入排程更新的資料'); } } catch (e) {}

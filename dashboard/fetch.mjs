@@ -20,6 +20,9 @@ export const STOCKS = [
   { code: '3189', name: '景碩', market: 'TWSE' },
   { code: '8021', name: '尖點', market: 'TWSE' },
   { code: '8358', name: '金居', market: 'TPEx' },
+  { code: '2455', name: '全新', market: 'TWSE' },
+  { code: '6173', name: '信昌電', market: 'TPEx' },
+  { code: '6182', name: '合晶', market: 'TPEx' },
 ];
 const MONTHS = 7;          // 日 K 抓幾個月（MA60 需要暖機）
 const INST_DAYS = 60;      // 法人資料天數
@@ -118,25 +121,31 @@ async function fetchInstTPEx(date) {
 }
 
 // 證交所即時報價（上市、上櫃都支援，一次查全部）。盤中或日 K 尚未公布時，用它補上當天的 K 棒
+// 盤中 z（成交價）只在最近 5 秒有成交時才有值，其餘為 "-"：最多重抓 3 次，仍沒有就用最佳買價
 async function fetchLive() {
   const ex = STOCKS.map(s => `${s.market === 'TPEx' ? 'otc' : 'tse'}_${s.code}.tw`).join('|');
-  await sleep(DELAY);
-  try {
-    const res = await fetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(ex)}&json=1&delay=0&_=${Date.now()}`,
-      { headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://mis.twse.com.tw/stock/index.jsp' } });
-    const j = await res.json();
-    const map = {};
-    for (const r of j.msgArray ?? []) {
-      const c = num(r.z) ?? num(r.pz);          // z 為 "-" 代表最近一筆無成交
-      if (c == null || !r.d) continue;
-      map[r.c] = { date: `${r.d.slice(0, 4)}-${r.d.slice(4, 6)}-${r.d.slice(6)}`, time: r.t,
-        o: num(r.o) ?? c, h: Math.max(num(r.h) ?? c, c), l: Math.min(num(r.l) ?? c, c), c, v: num(r.v) ?? 0 };
+  const map = {};
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await sleep(attempt ? 1500 : DELAY);
+    try {
+      const res = await fetch(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(ex)}&json=1&delay=0&_=${Date.now()}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://mis.twse.com.tw/stock/index.jsp' } });
+      const j = await res.json();
+      for (const r of j.msgArray ?? []) {
+        if (!r.d || map[r.c]?.src === 'trade') continue;
+        const trade = num(r.z) ?? num(r.pz);
+        const bid = num(String(r.b ?? '').split('_')[0]), ask = num(String(r.a ?? '').split('_')[0]);
+        const c = trade ?? bid ?? ask;
+        if (c == null) continue;
+        map[r.c] = { date: `${r.d.slice(0, 4)}-${r.d.slice(4, 6)}-${r.d.slice(6)}`, time: r.t, src: trade != null ? 'trade' : 'bid',
+          o: num(r.o) ?? c, h: Math.max(num(r.h) ?? c, c), l: Math.min(num(r.l) ?? c, c), c, v: num(r.v) ?? 0 };
+      }
+    } catch (e) {
+      console.warn('  ! 即時報價失敗：' + e.message);
     }
-    return map;
-  } catch (e) {
-    console.warn('  ! 即時報價失敗：' + e.message);
-    return {};
+    if (STOCKS.every(s => map[s.code]?.src === 'trade')) break;
   }
+  return map;
 }
 
 // 讓 server.mjs 顯示進度：@@PROGRESS 已完成 總數 說明
@@ -162,8 +171,8 @@ async function main() {
   for (const s of STOCKS) {
     const q = live[s.code], rows = daily[s.code];
     if (q && q.date > (rows.at(-1)?.date ?? '')) {
-      rows.push({ date: q.date, o: q.o, h: q.h, l: q.l, c: q.c, v: Math.round(q.v), amt: null, n: null, live: true, time: q.time });
-      console.log(`  ${s.name} 補上即時 K 棒 ${q.date} ${q.time} 價 ${q.c}`);
+      rows.push({ date: q.date, o: q.o, h: q.h, l: q.l, c: q.c, v: Math.round(q.v), amt: null, n: null, live: true, time: q.time, src: q.src });
+      console.log(`  ${s.name} 補上即時 K 棒 ${q.date} ${q.time} ${q.src === 'trade' ? '成交價' : '買價'} ${q.c}`);
     }
   }
   step++;
